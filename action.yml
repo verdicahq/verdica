@@ -1,0 +1,33 @@
+name: "Decisis"
+description: "Checks pull requests against the decisions recorded in .decisions/"
+branding:
+  icon: "shield"
+  color: "gray-dark"
+
+inputs:
+  base:
+    description: "Base ref to diff against (e.g. the PR base branch)"
+    required: false
+    default: "main"
+  fail-on:
+    description: "'never' (report only) or 'block' (fail on high-confidence violations of block-severity decisions)"
+    required: false
+    default: "never"
+  anthropic-api-key:
+    description: "Optional. Enables the contradiction judge; without it the check reports which decisions govern the change."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install decisis
+      shell: bash
+      run: pip install --quiet "${{ github.action_path }}"
+    - name: Check diff against recorded decisions
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+      run: |
+        git fetch --no-tags --depth=200 origin "${{ inputs.base }}"
+        decisis check --base "origin/${{ inputs.base }}" --fail-on "${{ inputs.fail-on }}"
