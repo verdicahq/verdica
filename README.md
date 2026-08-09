@@ -55,10 +55,6 @@ Each decision declares how the gate reacts to a violation: `warn` (default — t
 | `DECISIS_MODEL` | `claude-opus-5` | any Anthropic model id |
 | `GITHUB_TOKEN` | — | required by `decisis mine` |
 
-## License
-
-Apache-2.0
-
 ## Bootstrap (from zero to hero)
 
 ```bash
@@ -69,3 +65,7 @@ decisis bootstrap --pr                 # write, branch, and open the bootstrap P
 ```
 
 The bootstrap extracts decision candidates from what the repo already contains — normative comments and docs, reverts, convention files, plus any notes folder you point it at — clusters the evidence, backtests the proposals against your recent merges (noisy scopes get demoted, decisions that would have caught a reverted merge get a receipt), and asks at most five one-tap questions for the calls it genuinely cannot make alone. Everything it proposes cites its evidence; nothing is invented. Machine-enforced rules (lint, CI) are recognized and linked, never duplicated.
+
+## License
+
+Apache-2.0
