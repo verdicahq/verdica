@@ -18,6 +18,7 @@ class Decision:
     status: str  # proposed | accepted | superseded
     paths: list[str]
     severity: str = "warn"  # warn | block
+    category: str = "engineering"  # strategy | product | design | engineering | process
     deciders: list[str] = field(default_factory=list)
     superseded_by: str | None = None
     body: str = ""
@@ -44,6 +45,7 @@ def parse_decision(path: Path) -> Decision:
         status=str(meta["status"]),
         paths=[str(p) for p in (scope.get("paths") or [])],
         severity=str(meta.get("severity") or "warn"),
+        category=str(meta.get("category") or "engineering"),
         deciders=[str(d) for d in (meta.get("deciders") or [])],
         superseded_by=meta.get("superseded_by"),
         body=text[m.end():],

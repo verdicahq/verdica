@@ -51,6 +51,14 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 1 if should_fail(findings, args.fail_on) else 0
 
 
+def cmd_bootstrap(args: argparse.Namespace) -> int:
+    from .bootstrap import run_bootstrap
+
+    print(run_bootstrap(Path(args.root), top=args.top, prs=args.prs,
+                        write=args.write))
+    return 0
+
+
 def cmd_mine(args: argparse.Namespace) -> int:
     from .miner import mine, summarize, to_jsonl
 
@@ -77,6 +85,16 @@ def main(argv: list[str] | None = None) -> int:
     p_check.add_argument("--base", required=True, help="base ref, e.g. origin/main")
     p_check.add_argument("--fail-on", choices=["never", "block"], default="never")
     p_check.set_defaults(func=cmd_check)
+
+    p_boot = sub.add_parser(
+        "bootstrap",
+        help="extract decision candidates from the repo itself (report-only by default)")
+    p_boot.add_argument("--root", default=".")
+    p_boot.add_argument("--top", type=int, default=12)
+    p_boot.add_argument("--prs", type=int, default=50, help="merges to backtest")
+    p_boot.add_argument("--write", action="store_true",
+                        help="write proposals into .decisions/")
+    p_boot.set_defaults(func=cmd_bootstrap)
 
     p_mine = sub.add_parser("mine", help="mine a repo's history for decision citations")
     p_mine.add_argument("repo", help="owner/name")

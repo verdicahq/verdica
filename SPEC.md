@@ -36,6 +36,7 @@ superseded_by: null       # filled when a later decision replaces this one
 | `title` | yes | One sentence stating the decision, not the topic. "Use Postgres for the order store", not "Database choice". |
 | `status` | yes | `proposed` → `accepted` → `superseded`. Never delete a file; supersede it. |
 | `severity` | no | `warn` (default): findings go to the digest/summary. `block`: the gate fails the check. |
+| `category` | no | `strategy` \| `product` \| `design` \| `engineering` (default) \| `process`. See "Categories" below — the category routes where and how the decision is enforced. |
 | `scope.paths` | yes | Glob patterns relative to the repo root. `dir/**` matches everything under `dir/`; elsewhere `*` matches across path separators (fnmatch semantics), so `*.tf` matches at any depth. A decision with no meaningful path scope may use `["**"]`, at the cost of being checked on every change. |
 | `deciders` | no | GitHub handles of the people who ratified it. |
 | `date` | no | ISO date of ratification. |
@@ -57,6 +58,24 @@ Why — including the constraints that were true at the time.
 ```
 
 The `## Rejected alternatives` section matters: most decision regressions re-propose an alternative that was already considered and rejected.
+
+## Categories
+
+The category is a routing key, not a label: it determines the natural enforcement surface, the sensible default severity, and who plausibly ratifies.
+
+| Category | Typical decision | Natural enforcement surface | Severity ceiling |
+|---|---|---|---|
+| `strategy` | target market, business model, build-vs-buy | digest and supersession review only — rarely diff-checkable | warn |
+| `product` | pricing values, feature scope, plan limits | config/copy/pricing paths in the gate | block |
+| `design` | palette, typography, interaction rules | theme code, static pages, store assets (image surfaces need a vision judge) | warn |
+| `engineering` | architecture, stack, patterns, invariants | code paths in the PR gate — the core case | block |
+| `process` | versioning, release flow, review rules | CI/workflow files, manifest files | block |
+
+A `strategy` decision that never gates still earns its file: it is the thing later decisions cite in `supersedes` chains, and the first thing the re-alignment surfaces show.
+
+## Sources and provenance
+
+Decisions enter the registry from anywhere the team actually decides; the file records where each came from. Bootstrap extraction reads the repository itself (normative comments, convention docs, reverts, review threads). Additional source adapters feed the same pipeline as plain mentions-with-provenance: meeting notes (e.g. Granola exports dropped in a watched folder or pushed via API), postmortems and retro documents — the natural home of **lessons learned**, which are decisions whose rationale cites the incident that taught them. A tool must never invent a decision without citable provenance.
 
 ## Ratification model
 

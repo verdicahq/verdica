@@ -87,3 +87,48 @@ def test_miner_classification():
         merged_at="2026-01-02T00:00:00Z", first_cite_at="2026-01-01T00:00:00Z",
         cite_source="comment", cited_ids=["ADR-1"], classification="cited_pre_merge",
     ).classification == "cited_pre_merge"
+
+
+def test_bootstrap_clustering_merges_shared_tokens():
+    from decisis.bootstrap import Mention, cluster_mentions
+    ms = [
+        Mention("lib/theme.dart", 10, "never change #6D28D9 without a decision", "comment"),
+        Mention("web/legal.html", 5, "accent stays #6D28D9 on every surface", "comment"),
+        Mention("docs/other.md", 3, "always run the linter before pushing", "doc"),
+    ]
+    clusters = cluster_mentions(ms)
+    sizes = sorted(len(c.mentions) for c in clusters)
+    assert sizes == [1, 2]  # the two #6D28D9 mentions merged, linter apart
+
+
+def test_bootstrap_backtest_demotes_and_receipts():
+    from decisis.bootstrap import Draft, Merge, backtest
+    noisy = Draft(id="DEC-0001", title="t", tier="T3", severity="warn",
+                  scope=["**"], evidence=[])
+    quiet = Draft(id="DEC-0002", title="t", tier="T3", severity="warn",
+                  scope=["ci/**"], evidence=[])
+    merges = [Merge("a" * 10, "one", ["src/a.py"]),
+              Merge("b" * 10, "two", ["src/b.py"]),
+              Merge("c" * 10, "three", ["ci/x.yml"], reverted=True)]
+    backtest([noisy, quiet], merges)
+    assert noisy.demoted and noisy.noise == 1.0
+    assert quiet.receipts and quiet.severity == "block" and not quiet.demoted
+
+
+def test_bootstrap_normative_scan_filters_code_lines(tmp_path):
+    import subprocess
+    from decisis.bootstrap import scan_normative
+    repo = tmp_path / "r"
+    repo.mkdir()
+    (repo / "a.py").write_text(
+        "# never commit the plain jar, always run the obfuscation step first\n"
+        "x = 'must be a string but this is code, not a comment line here'\n")
+    (repo / "notes.md").write_text("Deploys always go through the release job only.\n")
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                 "commit", "-qm", "x"]):
+        subprocess.run(cmd, cwd=repo, check=True)
+    got = {m.file for m in scan_normative(repo)}
+    assert "a.py" in got and "notes.md" in got
+    texts = " ".join(m.text for m in scan_normative(repo))
+    assert "not a comment line" not in texts
