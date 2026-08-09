@@ -33,6 +33,7 @@ NORMATIVE = (
     r"must not|must be|must never|never |always |do not |don'?t |should not"
     r"|shouldn'?t |keep in sync|only .{3,40} (ships|deploys|releases)"
     r"|non (si |va |deve |devono )| mai | sempre |vietato|obbligatori|altrimenti"
+    r"|deciso|decidiamo|si è deciso|we decided|agreed to|from now on|d'ora in poi"
 )
 COMMENT_MARK = re.compile(r"^\s*(#|//|/?\*|<!--|;|--|%)\s?")
 DOC_SUFFIXES = (".md", ".rst", ".txt", ".adoc")
@@ -44,12 +45,14 @@ ENFORCEMENT_HINTS = (
 SKIP_DIRS = ("vendor/", "node_modules/", "third_party/", "dist/", "build/",
              ".venv/", "generated/")
 CATEGORY_HINTS = (
-    ("design", ("theme", "design", "ui", "ux", "style", "color", "brand",
-                "store/", "assets/")),
-    ("product", ("pricing", "price", "fee", "plan", "paywall", "onboarding",
-                 "copy", "config")),
-    ("process", (".github/", "ci/", "workflow", "release", "version",
-                 "contributing", "deploy")),
+    # hints are matched as substrings: keep them long enough not to hide
+    # inside ordinary words ("ui" matches "build")
+    ("design", ("theme", "design", "style", "color", "palette", "brand",
+                "store/", "assets/", "font", "spacing")),
+    ("product", ("pricing", "price", "fee", "paywall", "onboarding",
+                 "plan limit", "freemium")),
+    ("process", (".github/", "workflow", "release", "version", "deploy",
+                 "contributing", "changelog")),
 )
 STOP_TOKENS = {
     "should", "always", "never", "must", "avoid", "please", "before", "after",
@@ -83,8 +86,15 @@ class Cluster:
     def files(self) -> list[str]:
         return sorted({m.file for m in self.mentions if m.file})
 
+    @property
+    def explicit(self) -> bool:
+        """An explicit decision statement outranks a passing normative comment."""
+        return any(re.match(r"(?i)\s*(deciso|decidiamo|regola|we decided|agreed|decision:)",
+                            m.text) for m in self.mentions)
+
     def score(self) -> tuple:
-        return (self.tier == "T2", len(self.mentions), -min(m.line for m in self.mentions))
+        return (self.tier == "T2", self.explicit, len(self.mentions),
+                -min(m.line for m in self.mentions))
 
 
 def guess_category(files: list[str], text: str) -> str:
@@ -133,6 +143,8 @@ def scan_normative(root: Path, cap: int = 400) -> list[Mention]:
         text = text.strip()
         if any(s in path for s in SKIP_DIRS):
             continue  # vendored/generated code states the library's rules, not the team's
+        if re.match(r"-?\s*\[[ xX]\]", text):
+            continue  # checklist items are work in progress, not standing rules
         is_doc = path.endswith(DOC_SUFFIXES)
         if not is_doc and not COMMENT_MARK.match(text):
             continue
@@ -186,22 +198,42 @@ def cluster_mentions(mentions: list[Mention]) -> list[Cluster]:
     for m in mentions:
         if not m.file:  # reverts: one cluster each
             clusters.append(Cluster([m]))
-    # pass 2: merge clusters sharing a distinctive token
-    merged = True
-    while merged:
-        merged = False
-        for i in range(len(clusters)):
-            for j in range(i + 1, len(clusters)):
-                ti = set().union(*(m.tokens() for m in clusters[i].mentions))
-                tj = set().union(*(m.tokens() for m in clusters[j].mentions))
-                if ti & tj:
-                    clusters[i].mentions.extend(clusters[j].mentions)
-                    del clusters[j]
-                    merged = True
-                    break
-            if merged:
-                break
-    return clusters
+    # pass 2 (single round): merge pairs sharing a token that appears in
+    # exactly two of the proximity clusters. Computed once on the original
+    # index and size-capped — iterated rare-token merging chains
+    # transitively and snowballs into a mega-cluster.
+    def toks(c: Cluster) -> set[str]:
+        out: set[str] = set()
+        for m in c.mentions:
+            out |= m.tokens()
+        return out
+
+    token_owners: dict[str, list[int]] = defaultdict(list)
+    for idx, c in enumerate(clusters):
+        for t in toks(c):
+            token_owners[t].append(idx)
+
+    parent = list(range(len(clusters)))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    size = [len(c.mentions) for c in clusters]
+    for owners in token_owners.values():
+        if len(owners) != 2:
+            continue
+        a, b = find(owners[0]), find(owners[1])
+        if a != b and size[a] + size[b] <= 10:
+            parent[b] = a
+            size[a] += size[b]
+
+    grouped: dict[int, list[Mention]] = defaultdict(list)
+    for idx, c in enumerate(clusters):
+        grouped[find(idx)].extend(c.mentions)
+    return [Cluster(ms) for ms in grouped.values()]
 
 
 # ---- S2: distillation ------------------------------------------------------
@@ -226,12 +258,13 @@ DISTILL_SCHEMA = {
 
 def distill(cluster: Cluster, index: int) -> Draft | None:
     evidence = cluster.mentions[:8]
+    repo_files = [f for f in cluster.files if not f.startswith("notes:")]
     scope = sorted({str(Path(f).parent) + "/**" if "/" in f else f
-                    for f in cluster.files})[:4] or ["**"]
+                    for f in repo_files})[:4] or ["**"]
     all_text = " ".join(m.text for m in evidence)
     if os.environ.get("ANTHROPIC_API_KEY"):
         draft = _distill_llm(cluster, evidence, scope)
-        if draft is None:
+        if draft is None:  # judged not a real rule (or refused)
             return None
     else:
         strongest = max(evidence, key=lambda m: len(m.text))
@@ -282,6 +315,95 @@ def _distill_llm(cluster: Cluster, evidence: list[Mention], scope: list[str]) ->
     return None if not data["is_real_rule"] else data
 
 
+# ---- source adapters -------------------------------------------------------
+
+NORMATIVE_RE = re.compile(NORMATIVE, re.IGNORECASE)
+
+
+def scan_notes(notes_dir: Path, cap: int = 200) -> list[Mention]:
+    """External notes folder (meeting exports, Granola dumps, postmortems).
+
+    Note mentions carry a `notes:` file prefix so they contribute evidence and
+    provenance but never scope paths — a note lives outside the repo tree.
+    """
+    mentions: list[Mention] = []
+    for f in sorted(list(notes_dir.rglob("*.md")) + list(notes_dir.rglob("*.txt"))):
+        try:
+            lines = f.read_text(encoding="utf-8", errors="ignore").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines, 1):
+            text = line.strip().lstrip("-*# ").strip()
+            if NORMATIVE_RE.search(text) and 18 <= len(text) <= 300:
+                mentions.append(Mention(file=f"notes:{f.name}", line=i,
+                                        text=text, kind="note"))
+                if len(mentions) >= cap:
+                    return mentions
+    return mentions
+
+
+# ---- onboarding questions --------------------------------------------------
+
+@dataclass
+class Question:
+    kind: str  # confirm_block | scope_fork
+    draft: Draft
+    prompt: str
+    options: list[str]  # option 1 is the default
+
+    def apply(self, choice: int) -> None:
+        picked = self.options[choice - 1] if 1 <= choice <= len(self.options) else self.options[0]
+        if self.kind == "confirm_block":
+            self.draft.severity = "block" if picked == "block" else "warn"
+        elif self.kind == "scope_fork":
+            self.draft.scope = [picked] if picked != "keep all" else self.draft.scope
+
+
+def collect_questions(drafts: list[Draft], cap: int = 5) -> list[Question]:
+    """Only genuinely undecidable calls become questions; everything else defaults."""
+    questions: list[Question] = []
+    for d in drafts:
+        if d.demoted:
+            continue
+        if d.receipts:
+            questions.append(Question(
+                kind="confirm_block", draft=d,
+                prompt=(f"{d.id} already cost a revert ({d.receipts[0][:60]}). "
+                        f"Enforce as blocking?"),
+                options=["block", "warn"],
+            ))
+        elif len(d.scope) > 1:
+            tops = sorted({p.split("/", 1)[0] for p in d.scope})
+            if len(tops) > 1:
+                questions.append(Question(
+                    kind="scope_fork", draft=d,
+                    prompt=f"{d.id} spans {', '.join(tops)} — which scope applies?",
+                    options=["keep all", *d.scope],
+                ))
+    return questions[:cap]
+
+
+def ask(questions: list[Question], answers: list[int] | None,
+        interactive: bool) -> list[str]:
+    """Apply defaults, scripted answers, or prompt on stdin. Returns a log."""
+    log = []
+    for i, q in enumerate(questions):
+        choice = 1
+        if answers and i < len(answers):
+            choice = answers[i]
+        elif interactive:
+            opts = "  ".join(f"[{n}] {o}" for n, o in enumerate(q.options, 1))
+            print(f"\nQ{i + 1}. {q.prompt}\n     {opts}")
+            try:
+                choice = int(input("     > ").strip() or "1")
+            except (ValueError, EOFError):
+                choice = 1
+        q.apply(choice)
+        picked = q.options[choice - 1] if 1 <= choice <= len(q.options) else q.options[0]
+        log.append(f"Q{i + 1} {q.draft.id} [{q.kind}] -> {picked}")
+    return log
+
+
 # ---- S3: backtest ----------------------------------------------------------
 
 @dataclass
@@ -320,6 +442,14 @@ def backtest(drafts: list[Draft], merges: list[Merge],
     from .formats import path_matches
 
     for d in drafts:
+        has_repo_evidence = any(
+            m.file and not m.file.startswith("notes:") for m in d.evidence)
+        if not has_repo_evidence:
+            # no path scope derivable (e.g. meeting-note decisions): the
+            # enforcement surface is the digest, not the diff gate — the
+            # backtest's noise metric does not apply
+            d.noise = 0.0
+            continue
         hits = [m for m in merges
                 if any(path_matches(p, f) for p in d.scope for f in m.files)]
         d.noise = len(hits) / len(merges) if merges else 0.0
@@ -361,8 +491,12 @@ def render_decision(d: Draft) -> str:
 
 
 def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
-                  write: bool = False) -> str:
+                  write: bool = False, notes: Path | None = None,
+                  answers: list[int] | None = None,
+                  interactive: bool = False) -> str:
     mentions = scan_normative(root) + scan_reverts(root)
+    if notes and notes.is_dir():
+        mentions += scan_notes(notes)
     enforcement = inventory_enforcement(root)
     clusters = sorted(cluster_mentions(mentions),
                       key=lambda c: c.score(), reverse=True)
@@ -373,6 +507,7 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
     backtest(drafts, merges)
     kept = [d for d in drafts if not d.demoted][:top]
     parked = [d for d in drafts if d.demoted] + [d for d in drafts if not d.demoted][top:]
+    qa_log = ask(collect_questions(kept), answers, interactive)
 
     lines = [
         f"# decisis bootstrap — {root.name}",
@@ -388,6 +523,8 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
                      f"noise {d.noise:.0%}{receipt}")
         lines.append(f"  {d.title}")
         lines.append(f"  scope: {', '.join(d.scope)}")
+    if qa_log:
+        lines += ["", "Onboarding answers (defaults where unanswered):", *[f"  {q}" for q in qa_log]]
     if enforcement:
         lines += ["", "T1 (already enforced, skipped): " + ", ".join(enforcement[:8])]
 

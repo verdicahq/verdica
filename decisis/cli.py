@@ -52,10 +52,42 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_bootstrap(args: argparse.Namespace) -> int:
+    import subprocess
+    import sys as _sys
+
     from .bootstrap import run_bootstrap
 
-    print(run_bootstrap(Path(args.root), top=args.top, prs=args.prs,
-                        write=args.write))
+    answers = [int(x) for x in args.answers.split(",") if x.strip()] if args.answers else None
+    interactive = args.interactive or (answers is None and _sys.stdin.isatty())
+    report = run_bootstrap(
+        Path(args.root), top=args.top, prs=args.prs,
+        write=args.write or args.pr,
+        notes=Path(args.notes) if args.notes else None,
+        answers=answers, interactive=interactive and not answers,
+    )
+    print(report)
+    if args.pr:
+        root = Path(args.root)
+        dirty = subprocess.run(["git", "-C", root, "status", "--porcelain"],
+                               capture_output=True, text=True).stdout
+        if any(not line[3:].startswith(".decisions/") for line in dirty.splitlines()):
+            print("\nrefusing --pr: working tree has changes outside .decisions/")
+            return 1
+        for cmd in (["git", "-C", root, "checkout", "-b", "decisis/bootstrap"],
+                    ["git", "-C", root, "add", ".decisions"],
+                    ["git", "-C", root, "commit", "-m",
+                     "Bootstrap the decision registry\n\nProposed by decisis "
+                     "bootstrap from the repository's own evidence. Review each "
+                     "decision, delete what is wrong, merge to ratify."],
+                    ["git", "-C", root, "push", "-u", "origin", "decisis/bootstrap"]):
+            if subprocess.run(cmd).returncode != 0:
+                return 1
+        pr = subprocess.run(
+            ["gh", "pr", "create", "--title", "Bootstrap the decision registry",
+             "--body", f"```\n{report}\n```\n\nMerging this PR ratifies the "
+             "decisions left in `.decisions/` — delete or edit before merging."],
+            cwd=root)
+        return pr.returncode
     return 0
 
 
@@ -94,6 +126,12 @@ def main(argv: list[str] | None = None) -> int:
     p_boot.add_argument("--prs", type=int, default=50, help="merges to backtest")
     p_boot.add_argument("--write", action="store_true",
                         help="write proposals into .decisions/")
+    p_boot.add_argument("--notes", help="external notes folder (meeting exports, postmortems)")
+    p_boot.add_argument("--interactive", action="store_true",
+                        help="force the onboarding questions on stdin")
+    p_boot.add_argument("--answers", help="scripted answers, e.g. '1,2,1'")
+    p_boot.add_argument("--pr", action="store_true",
+                        help="write, branch, and open the bootstrap PR (needs gh)")
     p_boot.set_defaults(func=cmd_bootstrap)
 
     p_mine = sub.add_parser("mine", help="mine a repo's history for decision citations")

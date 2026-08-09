@@ -102,11 +102,12 @@ def test_bootstrap_clustering_merges_shared_tokens():
 
 
 def test_bootstrap_backtest_demotes_and_receipts():
-    from decisis.bootstrap import Draft, Merge, backtest
+    from decisis.bootstrap import Draft, Mention, Merge, backtest
+    repo_ev = [Mention("src/a.py", 1, "never do the thing", "comment")]
     noisy = Draft(id="DEC-0001", title="t", tier="T3", severity="warn",
-                  scope=["**"], evidence=[])
+                  scope=["**"], evidence=repo_ev)
     quiet = Draft(id="DEC-0002", title="t", tier="T3", severity="warn",
-                  scope=["ci/**"], evidence=[])
+                  scope=["ci/**"], evidence=repo_ev)
     merges = [Merge("a" * 10, "one", ["src/a.py"]),
               Merge("b" * 10, "two", ["src/b.py"]),
               Merge("c" * 10, "three", ["ci/x.yml"], reverted=True)]
@@ -132,3 +133,36 @@ def test_bootstrap_normative_scan_filters_code_lines(tmp_path):
     assert "a.py" in got and "notes.md" in got
     texts = " ".join(m.text for m in scan_normative(repo))
     assert "not a comment line" not in texts
+
+
+def test_scan_notes_and_no_scope_from_notes(tmp_path):
+    from decisis.bootstrap import Cluster, Mention, distill, scan_notes
+    notes = tmp_path / "meetings"
+    notes.mkdir()
+    (notes / "retro.md").write_text(
+        "# Retro\n- Deciso: la beta esterna parte solo dopo i tester interni\n"
+        "- il caffè era buono\n", encoding="utf-8")
+    ms = scan_notes(notes)
+    assert len(ms) == 1 and ms[0].file.startswith("notes:")
+    d = distill(Cluster([ms[0]]), 1)
+    assert d.scope == ["**"]  # notes never contribute scope paths
+
+
+def test_questions_defaults_and_choices():
+    from decisis.bootstrap import Draft, Question, collect_questions, ask
+    with_receipt = Draft(id="DEC-0001", title="t", tier="T2", severity="block",
+                         scope=["ci/**"], evidence=[],
+                         receipts=["abc revert"])
+    forked = Draft(id="DEC-0002", title="t", tier="T3", severity="warn",
+                   scope=["app/**", "docs/**"], evidence=[])
+    qs = collect_questions([with_receipt, forked])
+    assert [q.kind for q in qs] == ["confirm_block", "scope_fork"]
+    log = ask(qs, answers=[2, 3], interactive=False)
+    assert with_receipt.severity == "warn"      # answer 2 = warn
+    assert forked.scope == ["docs/**"]           # answer 3 = second scope path
+    assert len(log) == 2
+    # defaults: 1 = keep block / keep all
+    qs2 = collect_questions([Draft(id="D", title="t", tier="T2", severity="block",
+                                   scope=["ci/**"], evidence=[], receipts=["r"])])
+    ask(qs2, answers=None, interactive=False)
+    assert qs2[0].draft.severity == "block"
