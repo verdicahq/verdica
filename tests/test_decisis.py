@@ -166,3 +166,16 @@ def test_questions_defaults_and_choices():
                                    scope=["ci/**"], evidence=[], receipts=["r"])])
     ask(qs2, answers=None, interactive=False)
     assert qs2[0].draft.severity == "block"
+
+
+def test_llm_provider_selection(monkeypatch):
+    from decisis import llm
+    for var in ("DECISIS_PROVIDER", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    assert llm.provider() is None and not llm.available()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
+    assert llm.provider() == "anthropic"
+    monkeypatch.setenv("MISTRAL_API_KEY", "y")
+    assert llm.provider() == "mistral"  # mistral preferred when both exist
+    monkeypatch.setenv("DECISIS_PROVIDER", "anthropic")
+    assert llm.provider() == "anthropic"  # explicit owner choice wins

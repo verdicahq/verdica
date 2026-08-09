@@ -51,8 +51,10 @@ Each decision declares how the gate reacts to a violation: `warn` (default — t
 
 | Env var | Default | |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | enables the contradiction judge |
-| `DECISIS_MODEL` | `claude-opus-5` | any Anthropic model id |
+| `MISTRAL_API_KEY` | — | enables judge + distillation on Mistral (the reference provider) |
+| `ANTHROPIC_API_KEY` | — | same, on Anthropic (`pip install decisis[anthropic]`) |
+| `DECISIS_PROVIDER` | auto (mistral first) | force `mistral` or `anthropic` when both keys exist |
+| `DECISIS_MODEL` | per provider | `mistral-large-latest` / `claude-opus-5` |
 | `GITHUB_TOKEN` | — | required by `decisis mine` |
 
 ## Bootstrap (from zero to hero)

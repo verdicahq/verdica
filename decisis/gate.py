@@ -57,13 +57,15 @@ def diff_for(base: str, paths: list[str]) -> str:
 
 
 def judge(decision: Decision, diff: str) -> dict | None:
-    """Ask the model whether the diff contradicts the decision. None if no key."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return None
-    import anthropic
+    """Ask the configured model whether the diff contradicts the decision.
 
-    client = anthropic.Anthropic()
-    model = os.environ.get("DECISIS_MODEL", "claude-opus-5")
+    None when no provider is configured (DEC-0008) — the gate then reports
+    scope awareness only.
+    """
+    from . import llm
+
+    if not llm.available():
+        return None
     prompt = (
         "A team recorded this decision:\n\n"
         f"# {decision.id}: {decision.title}\n{decision.body.strip()}\n\n"
@@ -74,18 +76,7 @@ def judge(decision: Decision, diff: str) -> dict | None:
         "specific hunk in `evidence` if it contradicts; keep evidence short.\n\n"
         f"```diff\n{diff}\n```"
     )
-    response = client.messages.create(
-        model=model,
-        max_tokens=2048,
-        output_config={"format": {"type": "json_schema", "schema": VERDICT_SCHEMA}},
-        messages=[{"role": "user", "content": prompt}],
-    )
-    if response.stop_reason == "refusal":
-        return None
-    import json
-
-    text = next(b.text for b in response.content if b.type == "text")
-    return json.loads(text)
+    return llm.complete_json(prompt, VERDICT_SCHEMA)
 
 
 def run_gate(root: Path, base: str) -> list[Finding]:

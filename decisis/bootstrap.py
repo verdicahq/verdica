@@ -261,8 +261,10 @@ def distill(cluster: Cluster, index: int) -> Draft | None:
     repo_files = [f for f in cluster.files if not f.startswith("notes:")]
     scope = sorted({str(Path(f).parent) + "/**" if "/" in f else f
                     for f in repo_files})[:4] or ["**"]
+    from . import llm
+
     all_text = " ".join(m.text for m in evidence)
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if llm.available():
         draft = _distill_llm(cluster, evidence, scope)
         if draft is None:  # judged not a real rule (or refused)
             return None
@@ -290,29 +292,31 @@ def distill(cluster: Cluster, index: int) -> Draft | None:
 
 
 def _distill_llm(cluster: Cluster, evidence: list[Mention], scope: list[str]) -> dict | None:
-    import anthropic
+    from . import llm
 
-    client = anthropic.Anthropic()
     ev_lines = "\n".join(
         f"- {m.kind} {m.file}:{m.line} {m.ref}: {m.text}" for m in evidence)
-    response = client.messages.create(
-        model=os.environ.get("DECISIS_MODEL", "claude-opus-5"),
-        max_tokens=2048,
-        output_config={"format": {"type": "json_schema", "schema": DISTILL_SCHEMA}},
-        messages=[{"role": "user", "content": (
-            "These artifacts from one repository appear to state a team rule. "
-            "Distill THE rule they share into a decision record: a one-sentence "
-            "normative title (state the rule, not the topic), a rationale drawn "
-            "only from the evidence, and scope paths (globs) derived from where "
-            "the evidence lives. If they do not state a real rule, set "
-            "is_real_rule=false.\n\nEvidence:\n" + ev_lines
-            + f"\n\nDefault scope from evidence paths: {scope}"
-        )}],
+    data = llm.complete_json(
+        "These artifacts from one repository appear to state a team rule. "
+        "Distill THE rule they share into a decision record: a one-sentence "
+        "normative title (state the rule, not the topic — keep the original "
+        "language of the evidence), a rationale drawn only from the evidence, "
+        "and scope paths (globs) derived from where the evidence lives. "
+        "Evidence lines prefixed `notes:` come from meeting notes and must "
+        "not contribute scope paths — when ALL evidence is notes, scope_paths "
+        "must be exactly [\"**\"]; never invent paths that no evidence "
+        "touches. Severity defaults to warn; use block only when violating "
+        "the rule is irreversible or security/pricing-critical. If the "
+        "artifacts do not state a real standing rule (TODOs, status updates, "
+        "descriptions of code mechanics with no normative force), set "
+        "is_real_rule=false.\n\n"
+        "Evidence:\n" + ev_lines
+        + f"\n\nDefault scope from evidence paths: {scope}",
+        DISTILL_SCHEMA,
     )
-    if response.stop_reason == "refusal":
+    if data is None or not data.get("is_real_rule"):
         return None
-    data = json.loads(next(b.text for b in response.content if b.type == "text"))
-    return None if not data["is_real_rule"] else data
+    return data
 
 
 # ---- source adapters -------------------------------------------------------
@@ -501,8 +505,19 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
     clusters = sorted(cluster_mentions(mentions),
                       key=lambda c: c.score(), reverse=True)
     start = next_id(root)
-    drafts = [d for i, c in enumerate(clusters[:top * 3])
-              if (d := distill(c, start + i))]
+    drafts: list[Draft] = []
+    distill_errors = 0
+    from . import llm
+    for i, c in enumerate(clusters[:top * 3]):
+        llm.last_error = None
+        d = distill(c, start + i)
+        if d:
+            drafts.append(d)
+        elif llm.last_error:
+            distill_errors += 1
+        if llm.available():
+            import time as _time
+            _time.sleep(0.4)  # pace provider calls
     merges = recent_merges(root, prs)
     backtest(drafts, merges)
     kept = [d for d in drafts if not d.demoted][:top]
@@ -514,7 +529,8 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
         f"mentions: {len(mentions)}  clusters: {len(clusters)}  "
         f"merges backtested: {len(merges)}",
         f"proposed: {len(kept)}  parked: {len(parked)}  "
-        f"already machine-enforced (T1, linked not extracted): {len(enforcement)}",
+        f"already machine-enforced (T1, linked not extracted): {len(enforcement)}"
+        + (f"  distillation errors: {distill_errors}" if distill_errors else ""),
         "",
     ]
     for d in kept:
