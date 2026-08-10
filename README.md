@@ -68,6 +68,16 @@ decisis bootstrap --pr                 # write, branch, and open the bootstrap P
 
 The bootstrap extracts decision candidates from what the repo already contains — normative comments and docs, reverts, convention files, plus any notes folder you point it at — clusters the evidence, backtests the proposals against your recent merges (noisy scopes get demoted, decisions that would have caught a reverted merge get a receipt), and asks at most five one-tap questions for the calls it genuinely cannot make alone. Everything it proposes cites its evidence; nothing is invented. Machine-enforced rules (lint, CI) are recognized and linked, never duplicated.
 
+## Meeting notes ingestion
+
+Decisions are born in meetings; three ways to get them in front of the extractor:
+
+1. **Export a note** (any notetaker → Markdown) into a folder and run `decisis bootstrap --notes <folder>`.
+2. **Keep notes in the repo**: files under `meetings/`, `minutes/`, `verbali/`, `retros/`, `postmortems/` are treated as meeting sources — full provenance, digest-only (they never gate a diff and never invent scope paths).
+3. **Granola via Zapier** (Granola's official outbound channel; its local cache is encrypted): Zap trigger *"Note added to Granola folder"* → GitHub action *"Create file"* into `docs/meetings/{{title}}-{{date}}.md`. Every meeting becomes a commit; the next bootstrap run distills it.
+
+Say decisions out loud in decision form — "decided: …", "from now on …" — those markers are what the extractor anchors on. An inbound-email ingestion address (works with every notetaker that can email a summary) is planned for the hosted tier.
+
 ## License
 
 Apache-2.0
