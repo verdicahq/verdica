@@ -179,3 +179,25 @@ def test_llm_provider_selection(monkeypatch):
     assert llm.provider() == "mistral"  # mistral preferred when both exist
     monkeypatch.setenv("DECISIS_PROVIDER", "anthropic")
     assert llm.provider() == "anthropic"  # explicit owner choice wins
+
+
+def test_inrepo_meeting_notes_are_note_kind(tmp_path):
+    import subprocess
+    from decisis.bootstrap import Cluster, distill, scan_normative
+    repo = tmp_path / "r"
+    (repo / "docs" / "meetings").mkdir(parents=True)
+    (repo / "docs" / "meetings" / "sync.md").write_text(
+        "Deciso: il deploy si fa sempre dal branch di release.\n")
+    (repo / "src").mkdir()
+    (repo / "src" / "a.py").write_text("# never deploy from a feature branch\n")
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                 "commit", "-qm", "x"]):
+        subprocess.run(cmd, cwd=repo, check=True)
+    ms = scan_normative(repo)
+    kinds = {m.file: m.kind for m in ms}
+    assert kinds["docs/meetings/sync.md"] == "note"
+    assert kinds["src/a.py"] == "comment"
+    # a meeting-note mention alone yields a digest-only draft (scope **)
+    note = next(m for m in ms if m.kind == "note")
+    assert distill(Cluster([note]), 1).scope == ["**"]

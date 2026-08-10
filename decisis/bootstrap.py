@@ -44,6 +44,11 @@ ENFORCEMENT_HINTS = (
 )
 SKIP_DIRS = ("vendor/", "node_modules/", "third_party/", "dist/", "build/",
              ".venv/", "generated/")
+# in-repo folders that hold meeting notes (e.g. synced from Granola via
+# Zapier -> "create file in repo"): their mentions are note-kind — full
+# provenance, but they never contribute scope paths
+MEETING_DIR_HINTS = ("meetings/", "meeting-notes/", "minutes/", "verbali/",
+                     "retros/", "postmortems/")
 CATEGORY_HINTS = (
     # hints are matched as substrings: keep them long enough not to hide
     # inside ordinary words ("ui" matches "build")
@@ -150,10 +155,11 @@ def scan_normative(root: Path, cap: int = 400) -> list[Mention]:
             continue
         if len(text) < 18 or len(text) > 300:
             continue
+        is_meeting = any(h in path.lower() for h in MEETING_DIR_HINTS)
         mentions.append(Mention(
             file=path, line=int(line),
             text=COMMENT_MARK.sub("", text).strip(),
-            kind="doc" if is_doc else "comment",
+            kind="note" if is_meeting else ("doc" if is_doc else "comment"),
         ))
         if len(mentions) >= cap:
             break
@@ -258,7 +264,9 @@ DISTILL_SCHEMA = {
 
 def distill(cluster: Cluster, index: int) -> Draft | None:
     evidence = cluster.mentions[:8]
-    repo_files = [f for f in cluster.files if not f.startswith("notes:")]
+    repo_files = sorted({m.file for m in cluster.mentions
+                         if m.file and m.kind != "note"
+                         and not m.file.startswith("notes:")})
     scope = sorted({str(Path(f).parent) + "/**" if "/" in f else f
                     for f in repo_files})[:4] or ["**"]
     from . import llm
