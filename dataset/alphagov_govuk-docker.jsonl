@@ -1,0 +1,1 @@
+{"repo": "alphagov/govuk-docker", "number": 436, "url": "https://github.com/alphagov/govuk-docker/pull/436", "title": "ADR to document shared Dockerfile approach", "state": "closed", "merged_at": "2020-11-25T10:11:02Z", "first_cite_at": "2020-11-18T17:26:33Z", "cite_source": "review_comment", "cited_ids": ["RFC-117", "RFC-128"], "classification": "cited_pre_merge"}
