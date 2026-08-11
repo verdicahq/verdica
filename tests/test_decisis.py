@@ -228,3 +228,40 @@ def test_digest_groups_by_category_and_flags_gating(tmp_path):
     assert "[block/gates]" in out        # real scope gates
     assert "Awaiting ratification (1)" in out
     assert "### product" not in out      # proposed decisions are not standing
+
+
+def test_survey_parses_decision_anatomy():
+    from decisis.survey import parse_decision
+    d = parse_decision("docs/adr/0007-use-postgres.md", """# 7. Use Postgres
+
+Date: 2024-03-01
+
+## Status
+
+Superseded by ADR-0012
+
+## Context
+We need a store for `services/orders/` data.
+
+## Considered Options
+- MongoDB — rejected, no transactions
+
+## Consequences
+Ops must run Postgres.
+""")
+    assert d.number == 7 and d.status == "superseded" and d.superseded_by == 12
+    assert d.date == "2024-03-01" and d.title == "7. Use Postgres"
+    assert d.has_alternatives and d.has_consequences and d.scope_derivable
+
+
+def test_survey_aggregate_handles_empty_and_mixed():
+    from decisis.survey import RepoSurvey, aggregate
+    empty = RepoSurvey(repo="a/b", error="no decision directory")
+    assert aggregate([empty])["with_registry"] == 0
+    full = RepoSurvey(repo="c/d", dir="adr", n=2, statuses={"accepted": 1, "superseded": 1},
+                      superseded=1, pct_with_alternatives=0.5, pct_with_consequences=1.0,
+                      pct_scope_derivable=1.0, median_words=300, months_since_last=25.0,
+                      dormant=True, median_days_to_supersede=400.0)
+    agg = aggregate([empty, full])
+    assert agg["with_registry"] == 1 and agg["total_decisions"] == 2
+    assert agg["pct_superseded"] == 0.5 and agg["pct_registries_dormant"] == 1.0

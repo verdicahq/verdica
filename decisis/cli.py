@@ -103,6 +103,37 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_survey(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    from .survey import aggregate, discover, survey_repo
+
+    token = os.environ["GITHUB_TOKEN"]
+    if args.discover:
+        repos = discover(tuple(args.discover.split("|")), token, args.cap)
+        print("\n".join(repos))
+        if args.out:
+            Path(args.out).write_text("\n".join(repos), encoding="utf-8")
+        return 0
+    if args.repos_file:
+        repos = [r.strip() for r in Path(args.repos_file).read_text().splitlines() if r.strip()]
+    else:
+        repos = [args.repo]
+    surveys = []
+    for i, repo in enumerate(repos, 1):
+        s = survey_repo(repo, token)
+        surveys.append(s)
+        print(f"[{i}/{len(repos)}] {repo}: "
+              + (s.error or f"{s.n} decisions in {s.dir}, "
+                            f"{s.superseded} superseded, "
+                            f"last {s.months_since_last}mo ago"), flush=True)
+        if args.out:
+            with open(args.out, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(asdict(s), ensure_ascii=False) + "\n")
+    print("\n" + json.dumps(aggregate(surveys), indent=2))
+    return 0
+
+
 def cmd_mine(args: argparse.Namespace) -> int:
     from .miner import mine, summarize, to_jsonl
 
@@ -151,6 +182,15 @@ def main(argv: list[str] | None = None) -> int:
     p_boot.add_argument("--pr", action="store_true",
                         help="write, branch, and open the bootstrap PR (needs gh)")
     p_boot.set_defaults(func=cmd_bootstrap)
+
+    p_survey = sub.add_parser(
+        "survey", help="survey public decision registries (anatomy, not citations)")
+    p_survey.add_argument("repo", nargs="?", help="owner/name")
+    p_survey.add_argument("--repos-file", help="file with one owner/name per line")
+    p_survey.add_argument("--discover", help="'|'-separated code-search fingerprints")
+    p_survey.add_argument("--cap", type=int, default=200)
+    p_survey.add_argument("--out", help="append per-repo JSONL here")
+    p_survey.set_defaults(func=cmd_survey)
 
     p_mine = sub.add_parser("mine", help="mine a repo's history for decision citations")
     p_mine.add_argument("repo", help="owner/name")
