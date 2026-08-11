@@ -265,3 +265,15 @@ def test_survey_aggregate_handles_empty_and_mixed():
     agg = aggregate([empty, full])
     assert agg["with_registry"] == 1 and agg["total_decisions"] == 2
     assert agg["pct_superseded"] == 0.5 and agg["pct_registries_dormant"] == 1.0
+
+
+def test_conflict_candidates_skips_parallel_families():
+    from decisis.survey import conflict_candidates
+    def d(path, title):
+        return {"path": path, "title": title, "status": "accepted", "date": None}
+    family = [d("a.md", "0013. Installation method: Home Assistant Container"),
+              d("b.md", "0016. Installation method: Home Assistant Core")]
+    assert conflict_candidates(family) == []          # parallel variants
+    rivals = [d("c.md", "5. Use custom testEach instead of jest each"),
+              d("e.md", "16. Remove custom testEach helper entirely")]
+    assert len(conflict_candidates(rivals)) == 1      # genuine reversal survives

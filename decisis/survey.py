@@ -333,9 +333,21 @@ def classify_titles(titles: list[str]) -> list[str]:
     return out
 
 
+def _title_prefix(title: str) -> str:
+    """Title minus its leading number, up to the first colon — the marker of a
+    deliberate family ("Installation method: X" / "Installation method: Y")."""
+    body = re.sub(r"^\s*\d+[.)]?\s*", "", title)
+    return body.split(":")[0].strip().lower() if ":" in body else ""
+
+
 def conflict_candidates(decisions: list[dict], cap: int = 12) -> list[tuple[dict, dict]]:
-    """Pairs of active decisions sharing distinctive vocabulary — the only
-    pairs worth spending a judgment on."""
+    """Pairs of active decisions sharing distinctive vocabulary — the only pairs
+    worth spending a judgment on.
+
+    Excludes deliberate families: decisions sharing a "Prefix: variant" title
+    enumerate parallel supported options, not rival ones. Field-measured: five
+    of the first ten flags were Home Assistant's four installation-method ADRs
+    plus their umbrella decision, all correct and coexisting by design."""
     stop = {"the", "and", "for", "with", "use", "using", "adr", "decision",
             "record", "architecture", "should", "will", "our", "from", "into"}
 
@@ -349,22 +361,37 @@ def conflict_candidates(decisions: list[dict], cap: int = 12) -> list[tuple[dict
     pairs = []
     for i in range(len(active)):
         for j in range(i + 1, len(active)):
-            shared = toks(active[i]) & toks(active[j])
+            a, b = active[i], active[j]
+            prefix = _title_prefix(a["title"])
+            if prefix and prefix == _title_prefix(b["title"]):
+                continue  # parallel variants of one family
+            shared = toks(a) & toks(b)
             if len(shared) >= 2:
-                pairs.append((len(shared), active[i], active[j]))
+                pairs.append((len(shared), a, b))
     pairs.sort(key=lambda p: -p[0])
     return [(a, b) for _, a, b in pairs[:cap]]
 
 
-def judge_conflict(a: dict, b: dict, repo: str) -> dict | None:
+def judge_conflict(a: dict, b: dict, repo: str,
+                   bodies: dict[str, str] | None = None) -> dict | None:
+    """Judge one candidate pair. `bodies` maps path -> decision text; without it
+    the judgment runs on titles alone, which field-measured at roughly half
+    precision — pass the bodies whenever they are available."""
     from . import llm
+
+    def block(d: dict) -> str:
+        text = (bodies or {}).get(d["path"], "")
+        excerpt = f"\n{text[:1200]}" if text else ""
+        return (f"({d['path']}, status {d['status']}, dated {d['date'] or 'unknown'}): "
+                f"{d['title']}{excerpt}")
 
     return llm.complete_json(
         f"Two decision records coexist as active in {repo}:\n\n"
-        f"A ({a['path']}, status {a['status']}): {a['title']}\n"
-        f"B ({b['path']}, status {b['status']}): {b['title']}\n\n"
+        f"A {block(a)}\n\nB {block(b)}\n\n"
         "Do they conflict? 'contradiction' = they mandate incompatible things; "
-        "'silent_supersession' = B clearly replaces A but A was never marked "
-        "superseded; 'overlap' = same ground, compatible; 'none' = unrelated. "
-        "Titles alone may be insufficient — answer 'unclear' rather than guess.",
+        "'silent_supersession' = the later one reverses the earlier, which was "
+        "never marked superseded; 'overlap' = same ground, compatible; 'none' = "
+        "unrelated, or parallel options a team deliberately supports side by "
+        "side. Deliberately parallel options are NOT a conflict. If the "
+        "evidence does not settle it, answer 'unclear' rather than guess.",
         CONFLICT_SCHEMA)
