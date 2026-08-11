@@ -106,7 +106,7 @@ def find_dir(repo: str, token: str) -> str:
     for d in CANDIDATE_DIRS:
         try:
             listing = _get(f"{API}/repos/{repo}/contents/{urllib.parse.quote(d)}", token)
-        except urllib.error.HTTPError:
+        except (urllib.error.HTTPError, OSError):
             continue
         if isinstance(listing, list) and sum(
                 1 for f in listing if f["name"].endswith((".md", ".markdown"))) >= 3:
@@ -157,14 +157,14 @@ def survey_repo(repo: str, token: str, max_files: int = 120) -> RepoSurvey:
         for f in files:
             try:
                 raw = _get(f["url"], token, "application/vnd.github.raw+json")
-            except urllib.error.HTTPError:
+            except (urllib.error.HTTPError, OSError):
                 continue
             parsed.append(parse_decision(f["path"], raw.decode("utf-8", "ignore")))
             time.sleep(0.05)
     except urllib.error.HTTPError as e:
         out.error = f"http {e.code}"
         return out
-    except (urllib.error.URLError, KeyError, ValueError) as e:
+    except (OSError, KeyError, ValueError) as e:  # OSError covers URLError + socket timeouts
         out.error = type(e).__name__
         return out
 
@@ -279,3 +279,92 @@ def aggregate(surveys: list[RepoSurvey]) -> dict:
             ((d, sum(1 for s in ok if s.dir == d)) for d in {s.dir for s in ok}),
             key=lambda kv: -kv[1])),
     }
+
+
+# ---- deep pass: taxonomy + self-conflicts (LLM, per DEC-0003 kept separate) --
+
+CATEGORY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "categories": {
+            "type": "array",
+            "items": {"type": "string",
+                      "enum": ["strategy", "product", "design", "engineering",
+                               "process", "none"]},
+        },
+    },
+    "required": ["categories"],
+    "additionalProperties": False,
+}
+CONFLICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "conflict": {"type": "string", "enum": ["yes", "no", "unclear"]},
+        "kind": {"type": "string",
+                 "enum": ["contradiction", "silent_supersession", "overlap", "none"]},
+        "explanation": {"type": "string"},
+    },
+    "required": ["conflict", "kind", "explanation"],
+    "additionalProperties": False,
+}
+
+
+def classify_titles(titles: list[str]) -> list[str]:
+    """Assign one category per title, in batches. Empty list on failure."""
+    from . import llm
+
+    out: list[str] = []
+    for start in range(0, len(titles), 20):
+        batch = titles[start:start + 20]
+        listed = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(batch))
+        data = llm.complete_json(
+            "Classify each architecture decision title into exactly one "
+            "category: strategy (market, business model, build-vs-buy), "
+            "product (pricing, feature scope, user-facing behaviour), design "
+            "(visual, interaction, UX), engineering (architecture, stack, code "
+            "invariants), process (versioning, release, review, ways of "
+            "working). Use 'none' only if the title states no decision. Return "
+            f"one category per title, in order.\n\n{listed}",
+            CATEGORY_SCHEMA)
+        if not data:
+            return []
+        out.extend(data["categories"][:len(batch)])
+        time.sleep(2.0)
+    return out
+
+
+def conflict_candidates(decisions: list[dict], cap: int = 12) -> list[tuple[dict, dict]]:
+    """Pairs of active decisions sharing distinctive vocabulary — the only
+    pairs worth spending a judgment on."""
+    stop = {"the", "and", "for", "with", "use", "using", "adr", "decision",
+            "record", "architecture", "should", "will", "our", "from", "into"}
+
+    def toks(d: dict) -> set[str]:
+        return {w.lower().strip("`*()[],.:") for w in d["title"].split()
+                if len(w) > 4} - stop
+
+    active = [d for d in decisions
+              if d["status"] not in ("superseded", "rejected", "obsolete", "deprecated")
+              and d["title"]]
+    pairs = []
+    for i in range(len(active)):
+        for j in range(i + 1, len(active)):
+            shared = toks(active[i]) & toks(active[j])
+            if len(shared) >= 2:
+                pairs.append((len(shared), active[i], active[j]))
+    pairs.sort(key=lambda p: -p[0])
+    return [(a, b) for _, a, b in pairs[:cap]]
+
+
+def judge_conflict(a: dict, b: dict, repo: str) -> dict | None:
+    from . import llm
+
+    return llm.complete_json(
+        f"Two decision records coexist as active in {repo}:\n\n"
+        f"A ({a['path']}, status {a['status']}): {a['title']}\n"
+        f"B ({b['path']}, status {b['status']}): {b['title']}\n\n"
+        "Do they conflict? 'contradiction' = they mandate incompatible things; "
+        "'silent_supersession' = B clearly replaces A but A was never marked "
+        "superseded; 'overlap' = same ground, compatible; 'none' = unrelated. "
+        "Titles alone may be insufficient — answer 'unclear' rather than guess.",
+        CONFLICT_SCHEMA)

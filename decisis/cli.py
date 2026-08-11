@@ -120,6 +120,17 @@ def cmd_survey(args: argparse.Namespace) -> int:
     else:
         repos = [args.repo]
     surveys = []
+    if args.out and Path(args.out).exists():  # resume: skip what is already written
+        from .survey import RepoSurvey
+
+        done = set()
+        for line in Path(args.out).read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                done.add(row["repo"])
+                surveys.append(RepoSurvey(**row))
+        repos = [r for r in repos if r not in done]
+        print(f"resuming: {len(done)} already surveyed, {len(repos)} to go")
     for i, repo in enumerate(repos, 1):
         s = survey_repo(repo, token)
         surveys.append(s)
