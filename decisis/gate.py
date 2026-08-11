@@ -13,7 +13,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .formats import Decision, load_decisions, scope_hits
+from .formats import Decision, load_decisions, path_matches, scope_hits
 
 VERDICT_SCHEMA = {
     "type": "object",
@@ -128,9 +128,13 @@ def render_digest(root: Path, since: str) -> str:
     decisions = load_decisions(root)
     if not decisions:
         return "No decisions recorded yet. Run `decisis bootstrap`.\n"
+    from .formats import decisions_dir
+
+    ddir = decisions_dir(root)
+    rel_ddir = str(ddir.relative_to(root)) if ddir else ".decisions"
     changed = subprocess.run(
         ["git", "-C", str(root), "log", f"--since={since}", "--name-status",
-         "--diff-filter=AM", "--format=", "--", ".decisions"],
+         "--diff-filter=AM", "--format=", "--", rel_ddir],
         capture_output=True, text=True, check=False,
     ).stdout
     touched = {line.split("\t")[-1] for line in changed.splitlines() if "\t" in line}
@@ -161,7 +165,59 @@ def render_digest(root: Path, since: str) -> str:
     if proposed:
         lines.append(f"## Awaiting ratification ({len(proposed)})\n")
         lines += [f"- {d.id} {d.title}" for d in proposed]
+        lines.append("")
+    hygiene = registry_hygiene(root)
+    if hygiene:
+        lines.append("## Registry hygiene\n")
+        lines += hygiene
     return "\n".join(lines) + "\n"
+
+
+def registry_hygiene(root: Path) -> list[str]:
+    """What the registry itself is hiding.
+
+    Surveying 166 public registries: 93% never marked a single decision
+    superseded, and half take no new decision for over a year while the code
+    keeps changing. The failure is not writing decisions - it is that nobody
+    goes back. These checks are the going back, and they are deterministic.
+    """
+    from .formats import load_decisions
+    from .survey import conflict_candidates
+
+    decisions = [d for d in load_decisions(root) if d.active]
+    if not decisions:
+        return []
+    lines: list[str] = []
+
+    tracked = subprocess.run(
+        ["git", "-C", str(root), "ls-files"],
+        capture_output=True, text=True, check=False).stdout.splitlines()
+    dead = [d for d in decisions
+            if d.paths and not any(path_matches(p, f) for p in d.paths for f in tracked)]
+    if dead:
+        lines.append("### Decisions pointing at code that no longer exists\n")
+        lines += [f"- **{d.id}** {d.title} — scope: {', '.join(d.paths)}" for d in dead]
+        lines.append("")
+
+    unscoped = [d for d in decisions if not d.paths]
+    if unscoped:
+        lines.append(f"### Not enforceable yet ({len(unscoped)})\n")
+        lines.append("Add a `scope.paths` to gate these on pull requests:\n")
+        lines += [f"- {d.id} {d.title}" for d in unscoped[:10]]
+        if len(unscoped) > 10:
+            lines.append(f"- …and {len(unscoped) - 10} more")
+        lines.append("")
+
+    pairs = conflict_candidates(
+        [{"path": d.file, "title": d.title, "status": d.status, "date": None}
+         for d in decisions])
+    if pairs:
+        lines.append("### Possibly superseded in practice\n")
+        lines.append("Both active, but one appears to reverse the other — "
+                     "supersede one, or say why both stand:\n")
+        lines += [f"- **{a['title']}**  ⟷  **{b['title']}**" for a, b in pairs[:5]]
+        lines.append("")
+    return lines
 
 
 def should_fail(findings: list[Finding], fail_on: str) -> bool:

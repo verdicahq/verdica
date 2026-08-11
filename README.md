@@ -44,9 +44,21 @@ decisis mine owner/repo           # mine a repo's history for decision citations
 
 `decisis mine` classifies every PR that cites a decision record (ADR/KEP/DEC/RFC) by timeline: cited during review, cited only after the merge, or a revert citing a decision — the last two are violations that slipped through. Run it on your own repository to see what a gate would have caught; it needs `GITHUB_TOKEN` and nothing else.
 
+## Already have ADRs?
+
+decisis reads an existing registry **where it already is** — `docs/adr`, `doc/adr`, `docs/decisions`, and the other conventional locations — in the format teams already write (Nygard, MADR). No migration, no reformatting:
+
+```bash
+cd your-repo && decisis digest
+```
+
+Imported decisions are visible and citable from the first run. They carry no scope yet, so they are digest-only; add a `scope.paths` to any one of them and it starts gating pull requests. `.decisions/` takes precedence when present.
+
 ## Digest
 
-`decisis digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, and what still awaits ratification. It is the only surface where `strategy` decisions — the ones no diff can ever contradict — actually show up, and the natural home for a weekly scheduled run.
+`decisis digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, what still awaits ratification, and **registry hygiene** — decisions whose scope points at code that no longer exists, decisions not yet enforceable, and pairs where one decision appears to reverse another while both are still marked accepted.
+
+That last check exists because of a measurement: across 166 public registries, **93% had never marked a single decision superseded** and half had taken no new decision in over a year while their code kept changing. Decisions do get reversed; registries just don't record it, and a reader cannot tell what is still in force. The digest is the going back.
 
 ## Severity
 

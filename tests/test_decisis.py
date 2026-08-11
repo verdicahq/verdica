@@ -29,11 +29,42 @@ def test_parse_roundtrip(tmp_path):
     assert "Body text" in d.body
 
 
-def test_missing_frontmatter_rejected(tmp_path):
-    p = tmp_path / "bad.md"
+def test_missing_frontmatter_rejected_in_native_dir(tmp_path):
+    ddir = tmp_path / ".decisions"
+    ddir.mkdir()
+    p = ddir / "bad.md"
     p.write_text("no frontmatter here")
     with pytest.raises(ValueError):
         parse_decision(p)
+
+
+def test_legacy_adr_read_in_place(tmp_path):
+    from decisis.formats import decisions_dir, load_decisions
+    adr = tmp_path / "docs" / "adr"
+    adr.mkdir(parents=True)
+    (adr / "0001-record-decisions.md").write_text(
+        "# 1. Record architecture decisions\n\n## Status\n\nAccepted\n\n"
+        "## Context\nWe need a log.\n")
+    (adr / "0007-use-postgres.md").write_text(
+        "# 7. Use Postgres\n\n## Status\n\nSuperseded by ADR-12\n")
+    (adr / "0012-use-mysql.md").write_text("# 12. Use MySQL\n\n## Status\n\nApproved\n")
+    (adr / "README.md").write_text("# Index\nnot a decision\n")
+    assert decisions_dir(tmp_path) == adr
+    ds = load_decisions(tmp_path)
+    assert len(ds) == 3                                  # README excluded
+    assert all(d.legacy and d.paths == [] for d in ds)   # digest-only until scoped
+    by_title = {d.title: d for d in ds}
+    assert by_title["Use Postgres"].status == "superseded"
+    assert by_title["Use MySQL"].status == "accepted"    # 'Approved' normalised
+
+
+def test_native_dir_wins_over_legacy(tmp_path):
+    from decisis.formats import decisions_dir
+    (tmp_path / "docs" / "adr").mkdir(parents=True)
+    for n in range(3):
+        (tmp_path / "docs" / "adr" / f"{n}.md").write_text("# x\n")
+    (tmp_path / ".decisions").mkdir()
+    assert decisions_dir(tmp_path) == tmp_path / ".decisions"
 
 
 def test_duplicate_ids_rejected(tmp_path):
@@ -295,3 +326,30 @@ def test_conflict_candidates_require_reversal_or_near_duplicate():
     dupes = [d("g.md", "9. End-to-end E2E Testing strategy"),
              d("h.md", "12. End-to-end E2E Testing strategy")]
     assert len(conflict_candidates(dupes)) == 1
+
+
+def test_registry_hygiene_flags_dead_scope_and_unscoped(tmp_path):
+    import subprocess
+    from decisis.gate import registry_hygiene
+    repo = tmp_path / "r"
+    ddir = repo / ".decisions"
+    ddir.mkdir(parents=True)
+    (repo / "src").mkdir()
+    (repo / "src" / "live.py").write_text("x = 1\n")
+    (ddir / "DEC-0001-live.md").write_text(
+        "---\nid: DEC-0001\ntitle: Live rule\nstatus: accepted\n"
+        "scope:\n  paths:\n    - \"src/**\"\n---\n\nbody\n")
+    (ddir / "DEC-0002-dead.md").write_text(
+        "---\nid: DEC-0002\ntitle: Dead rule\nstatus: accepted\n"
+        "scope:\n  paths:\n    - \"deleted_module/**\"\n---\n\nbody\n")
+    (ddir / "DEC-0003-unscoped.md").write_text(
+        "---\nid: DEC-0003\ntitle: Strategy rule\nstatus: accepted\n"
+        "scope:\n  paths: []\n---\n\nbody\n")
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                 "commit", "-qm", "x"]):
+        subprocess.run(cmd, cwd=repo, check=True)
+    out = "\n".join(registry_hygiene(repo))
+    assert "DEC-0002" in out and "no longer exists" in out
+    assert "DEC-0001" not in out                    # its scope still matches files
+    assert "Not enforceable yet (1)" in out and "DEC-0003" in out
