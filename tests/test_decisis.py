@@ -277,3 +277,21 @@ def test_conflict_candidates_skips_parallel_families():
     rivals = [d("c.md", "5. Use custom testEach instead of jest each"),
               d("e.md", "16. Remove custom testEach helper entirely")]
     assert len(conflict_candidates(rivals)) == 1      # genuine reversal survives
+
+
+def test_conflict_candidates_require_reversal_or_near_duplicate():
+    from decisis.survey import conflict_candidates
+    def d(path, title):
+        return {"path": path, "title": title, "status": "accepted", "date": None}
+    # umbrella + the variants it introduces: related, not conflicting
+    umbrella = [d("a.md", "0012. Define supported installation method"),
+                d("b.md", "0014. Installation method Home Assistant Supervised")]
+    assert conflict_candidates(umbrella) == []
+    # a reversal verb makes the pair worth judging
+    reversal = [d("c.md", "10. Integration configuration through YAML"),
+                d("f.md", "21. YAML integration configuration deprecation policy")]
+    assert len(conflict_candidates(reversal)) == 1
+    # two decisions with the same title are worth judging even without a verb
+    dupes = [d("g.md", "9. End-to-end E2E Testing strategy"),
+             d("h.md", "12. End-to-end E2E Testing strategy")]
+    assert len(conflict_candidates(dupes)) == 1

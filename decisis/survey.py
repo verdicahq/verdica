@@ -333,6 +333,12 @@ def classify_titles(titles: list[str]) -> list[str]:
     return out
 
 
+REVERSAL_RE = re.compile(
+    r"\b(remove|removal|drop|delete|deprecat\w*|replace|retire|revert|stop|"
+    r"abandon|migrate\s+away|no\s+longer|instead\s+of|don'?t|do\s+not|never)\b",
+    re.IGNORECASE)
+
+
 def _title_prefix(title: str) -> str:
     """Title minus its leading number, up to the first colon — the marker of a
     deliberate family ("Installation method: X" / "Installation method: Y")."""
@@ -366,8 +372,20 @@ def conflict_candidates(decisions: list[dict], cap: int = 12) -> list[tuple[dict
             if prefix and prefix == _title_prefix(b["title"]):
                 continue  # parallel variants of one family
             shared = toks(a) & toks(b)
-            if len(shared) >= 2:
-                pairs.append((len(shared), a, b))
+            if len(shared) < 2:
+                continue
+            # A pair conflicts only if one of them reverses something (remove,
+            # deprecate, don't, replace...) or they say nearly the same thing
+            # twice. Without this, an umbrella decision and the variants it
+            # introduces read as mutual supersession: Home Assistant's
+            # "Define supported installation method" against each method it
+            # defines produced three such false flags.
+            union = toks(a) | toks(b)
+            near_duplicate = len(shared) / len(union) >= 0.8 if union else False
+            if not (REVERSAL_RE.search(a["title"]) or REVERSAL_RE.search(b["title"])
+                    or near_duplicate):
+                continue
+            pairs.append((len(shared), a, b))
     pairs.sort(key=lambda p: -p[0])
     return [(a, b) for _, a, b in pairs[:cap]]
 
