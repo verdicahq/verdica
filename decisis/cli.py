@@ -51,6 +51,18 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 1 if should_fail(findings, args.fail_on) else 0
 
 
+def cmd_digest(args: argparse.Namespace) -> int:
+    from .gate import render_digest
+
+    digest = render_digest(Path(args.root), args.since)
+    print(digest)
+    step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary:
+        with open(step_summary, "a", encoding="utf-8") as fh:
+            fh.write(digest)
+    return 0
+
+
 def cmd_bootstrap(args: argparse.Namespace) -> int:
     import subprocess
     import sys as _sys
@@ -117,6 +129,12 @@ def main(argv: list[str] | None = None) -> int:
     p_check.add_argument("--base", required=True, help="base ref, e.g. origin/main")
     p_check.add_argument("--fail-on", choices=["never", "block"], default="never")
     p_check.set_defaults(func=cmd_check)
+
+    p_digest = sub.add_parser(
+        "digest", help="what changed in the registry, and what stands")
+    p_digest.add_argument("--root", default=".")
+    p_digest.add_argument("--since", default="7 days ago")
+    p_digest.set_defaults(func=cmd_digest)
 
     p_boot = sub.add_parser(
         "bootstrap",

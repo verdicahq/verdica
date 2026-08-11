@@ -118,6 +118,52 @@ def render_summary(findings: list[Finding]) -> str:
     return "\n".join(lines)
 
 
+def render_digest(root: Path, since: str) -> str:
+    """Weekly digest: decisions ratified/proposed since `since`, plus the
+    standing registry grouped by category. The non-gating half of the product —
+    what a team reads on Monday, and the only surface where strategy-category
+    decisions (never diff-checkable) actually show up."""
+    from .formats import load_decisions
+
+    decisions = load_decisions(root)
+    if not decisions:
+        return "No decisions recorded yet. Run `decisis bootstrap`.\n"
+    changed = subprocess.run(
+        ["git", "-C", str(root), "log", f"--since={since}", "--name-status",
+         "--diff-filter=AM", "--format=", "--", ".decisions"],
+        capture_output=True, text=True, check=False,
+    ).stdout
+    touched = {line.split("\t")[-1] for line in changed.splitlines() if "\t" in line}
+    # d.file is whatever path load_decisions saw; git reports repo-relative
+    by_relpath = {str(Path(d.file).relative_to(root)) if Path(d.file).is_absolute()
+                  else str(Path(d.file)): d for d in decisions}
+    recent = [by_relpath[p] for p in sorted(touched) if p in by_relpath]
+
+    lines = [f"# Decision digest — last {since}\n"]
+    if recent:
+        lines.append("## New or updated\n")
+        for d in recent:
+            lines.append(f"- **{d.id}** [{d.category}/{d.status}] {d.title}")
+        lines.append("")
+    else:
+        lines.append("_No decisions added or changed in this period._\n")
+    lines.append("## Standing registry\n")
+    for category in ("strategy", "product", "design", "engineering", "process"):
+        group = [d for d in decisions if d.category == category and d.active]
+        if not group:
+            continue
+        lines.append(f"### {category} ({len(group)})")
+        for d in group:
+            gate = "gates" if d.paths and d.paths != ["**"] else "digest-only"
+            lines.append(f"- {d.id} [{d.severity}/{gate}] {d.title}")
+        lines.append("")
+    proposed = [d for d in decisions if d.status == "proposed"]
+    if proposed:
+        lines.append(f"## Awaiting ratification ({len(proposed)})\n")
+        lines += [f"- {d.id} {d.title}" for d in proposed]
+    return "\n".join(lines) + "\n"
+
+
 def should_fail(findings: list[Finding], fail_on: str) -> bool:
     """fail_on: 'never' | 'block' (block-severity, high-confidence contradictions)."""
     if fail_on == "never":

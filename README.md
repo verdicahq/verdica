@@ -38,10 +38,15 @@ pip install decisis
 
 decisis init                      # scaffold .decisions/ with a template
 decisis check --base origin/main  # check the current branch's diff
+decisis digest                    # what changed in the registry, and what stands
 decisis mine owner/repo           # mine a repo's history for decision citations
 ```
 
 `decisis mine` classifies every PR that cites a decision record (ADR/KEP/DEC/RFC) by timeline: cited during review, cited only after the merge, or a revert citing a decision — the last two are violations that slipped through. Run it on your own repository to see what a gate would have caught; it needs `GITHUB_TOKEN` and nothing else.
+
+## Digest
+
+`decisis digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, and what still awaits ratification. It is the only surface where `strategy` decisions — the ones no diff can ever contradict — actually show up, and the natural home for a weekly scheduled run.
 
 ## Severity
 

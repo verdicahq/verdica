@@ -201,3 +201,30 @@ def test_inrepo_meeting_notes_are_note_kind(tmp_path):
     # a meeting-note mention alone yields a digest-only draft (scope **)
     note = next(m for m in ms if m.kind == "note")
     assert distill(Cluster([note]), 1).scope == ["**"]
+
+
+def test_digest_groups_by_category_and_flags_gating(tmp_path):
+    import subprocess
+    from decisis.gate import render_digest
+    repo = tmp_path / "r"
+    ddir = repo / ".decisions"
+    ddir.mkdir(parents=True)
+    (ddir / "DEC-0001-a.md").write_text(
+        "---\nid: DEC-0001\ntitle: Strategy rule\nstatus: accepted\n"
+        "category: strategy\nscope:\n  paths:\n    - \"**\"\n---\n\nbody\n")
+    (ddir / "DEC-0002-b.md").write_text(
+        "---\nid: DEC-0002\ntitle: Code rule\nstatus: accepted\nseverity: block\n"
+        "category: engineering\nscope:\n  paths:\n    - \"src/**\"\n---\n\nbody\n")
+    (ddir / "DEC-0003-c.md").write_text(
+        "---\nid: DEC-0003\ntitle: Pending rule\nstatus: proposed\n"
+        "category: product\nscope:\n  paths:\n    - \"cfg/**\"\n---\n\nbody\n")
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                 "commit", "-qm", "x"]):
+        subprocess.run(cmd, cwd=repo, check=True)
+    out = render_digest(repo, "30 days ago")
+    assert "### strategy (1)" in out and "### engineering (1)" in out
+    assert "digest-only" in out          # ** scope never gates
+    assert "[block/gates]" in out        # real scope gates
+    assert "Awaiting ratification (1)" in out
+    assert "### product" not in out      # proposed decisions are not standing
