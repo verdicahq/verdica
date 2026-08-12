@@ -14,9 +14,21 @@ inputs:
     required: false
     default: "never"
   anthropic-api-key:
-    description: "Optional. Enables the contradiction judge; without it the check reports which decisions govern the change."
+    description: "Optional. Enables the contradiction judge on Anthropic."
     required: false
     default: ""
+  mistral-api-key:
+    description: "Optional. Enables the contradiction judge on Mistral (the reference provider). Without any key the check reports which decisions govern the change."
+    required: false
+    default: ""
+  comment:
+    description: "Post the summary as a pull-request comment (needs pull-requests: write and github-token)"
+    required: false
+    default: "false"
+  github-token:
+    description: "Token used to post the comment"
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: "composite"
@@ -28,6 +40,10 @@ runs:
       shell: bash
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        MISTRAL_API_KEY: ${{ inputs.mistral-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         git fetch --no-tags --depth=200 origin "${{ inputs.base }}"
-        decisis check --base "origin/${{ inputs.base }}" --fail-on "${{ inputs.fail-on }}"
+        decisis check --base "origin/${{ inputs.base }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          ${{ inputs.comment == 'true' && '--comment' || '' }}

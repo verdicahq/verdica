@@ -26,7 +26,8 @@ jobs:
       - uses: AlbeMiglio/decisis@main
         with:
           base: ${{ github.base_ref }}
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}  # optional
+          mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}  # optional
+          comment: "true"                                  # needs pull-requests: write
 ```
 
 Runs in your CI, with your key. Nothing leaves your infrastructure except the diff hunks sent to the model you configured — and nothing at all if you run without a key.
@@ -59,6 +60,10 @@ Imported decisions are visible and citable from the first run. They carry no sco
 `decisis digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, what still awaits ratification, and **registry hygiene** — decisions whose scope points at code that no longer exists, decisions not yet enforceable, and pairs where one decision appears to reverse another while both are still marked accepted.
 
 That last check exists because of a measurement: across 166 public registries, **93% had never marked a single decision superseded** and half had taken no new decision in over a year while their code kept changing. Decisions do get reversed; registries just don't record it, and a reader cannot tell what is still in force. The digest is the going back.
+
+## Scope suggestions
+
+A change can touch a decision's subject while sitting outside its declared scope — a palette decision scoped to the theme directory says nothing about a colour landing in a static page. When a changed file carries a decision's own marks (a hex colour, an identifier it names) outside every scope, the check says so under **Scope suggestions**. It never gates: widening a ratified scope changes what the team promised to enforce, so it takes a ratified edit.
 
 ## Severity
 
