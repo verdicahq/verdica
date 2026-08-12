@@ -9,6 +9,7 @@ DEC-NNNN" — which is useful on its own and costs nothing.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -228,3 +229,113 @@ def should_fail(findings: list[Finding], fail_on: str) -> bool:
         f.contradicts and f.confidence == "high" and f.decision.severity == "block"
         for f in findings
     )
+
+
+# ---- scope advisor (DEC-0006: propose widenings, never invent them) ---------
+
+ADVISOR_STOP = {
+    "decision", "decisions", "record", "records", "architecture", "should",
+    "always", "never", "must", "using", "under", "which", "these", "those",
+    "their", "there", "where", "while", "about", "other", "every", "without",
+    "before", "after", "value", "values", "change", "changes", "default",
+}
+
+
+def _distinctive(decision: Decision) -> tuple[set[str], set[str]]:
+    """A decision's subject, as things that cannot be said by accident.
+
+    Only code-shaped tokens qualify: hex colours, snake_case and dotted
+    identifiers. Ordinary words from a title ("registry", "configuration")
+    appear all over a repository and produced three noisy suggestions per
+    commit when they were included. Returns (strong, weak): a hex colour is
+    strong enough alone, other identifiers need corroboration."""
+    text = f"{decision.title} {decision.body[:1500]}"
+    strong = {t.lower() for t in re.findall(r"#[0-9a-fA-F]{6}\b", text)}
+    weak = {t.lower() for t in
+            re.findall(r"\b[a-zA-Z]\w*_\w+\b|\b[a-zA-Z]\w*\.[a-z]{2,4}\b", text)}
+    return strong, weak - ADVISOR_STOP
+
+
+def advise_scope(root: Path, base: str, changed: list[str]) -> list[str]:
+    """Changed files that sit outside every scope yet carry a decision's own
+    vocabulary. Suggestions only: widening a ratified scope changes what the
+    team promised to enforce, so it takes a ratified edit (DEC-0006)."""
+    decisions = [d for d in load_decisions(root) if d.active and d.paths]
+    if not decisions:
+        return []
+    suggestions: list[str] = []
+    for d in decisions:
+        outside = [f for f in changed if not any(path_matches(p, f) for p in d.paths)]
+        if not outside:
+            continue
+        strong, weak = _distinctive(d)
+        if not (strong or weak):
+            continue
+        hits = []
+        for f in outside[:60]:
+            blob = subprocess.run(
+                ["git", "-C", str(root), "diff", f"{base}...HEAD", "--", f],
+                capture_output=True, text=True, check=False).stdout.lower()
+            hay = blob + " " + f.lower()
+            # one unmistakable mark, or two ordinary identifiers together
+            if any(m in hay for m in strong) or sum(m in hay for m in weak) >= 2:
+                hits.append(f)
+        if hits:
+            suggestions.append(
+                f"- **{d.id}** ({d.title}) — its subject appears in "
+                f"{', '.join(hits[:4])}{' …' if len(hits) > 4 else ''}, outside its "
+                f"scope ({', '.join(d.paths)}). Widen the scope in a PR if it should "
+                f"govern these too.")
+    return suggestions
+
+
+# ---- PR comment (upsert, never spam) ---------------------------------------
+
+MARKER = "<!-- decisis -->"
+
+
+def post_pr_comment(body: str) -> str:
+    """Upsert one comment on the PR this Action runs for.
+
+    A gate that adds a comment per run trains reviewers to mute it, so the
+    same comment is edited in place, identified by a hidden marker.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not (token and repo and event_path and Path(event_path).exists()):
+        return "no PR context"
+    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    number = (event.get("pull_request") or {}).get("number")
+    if not number:
+        return "not a pull_request event"
+
+    api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    headers = {"Authorization": f"Bearer {token}",
+               "Accept": "application/vnd.github+json",
+               "User-Agent": "decisis"}
+
+    def call(url: str, data: dict | None = None, method: str = "GET"):
+        req = urllib.request.Request(
+            url, headers={**headers, "Content-Type": "application/json"},
+            data=json.dumps(data).encode() if data else None, method=method)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.load(resp)
+
+    payload = {"body": f"{MARKER}\n{body}"}
+    try:
+        existing = call(f"{api}/repos/{repo}/issues/{number}/comments?per_page=100")
+        mine = next((c for c in existing if MARKER in (c.get("body") or "")), None)
+        if mine:
+            call(f"{api}/repos/{repo}/issues/comments/{mine['id']}", payload, "PATCH")
+            return f"updated comment {mine['id']}"
+        call(f"{api}/repos/{repo}/issues/{number}/comments", payload, "POST")
+        return "posted comment"
+    except urllib.error.HTTPError as e:
+        return f"comment failed: http {e.code}"
+    except OSError as e:
+        return f"comment failed: {type(e).__name__}"

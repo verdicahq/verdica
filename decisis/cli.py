@@ -39,11 +39,20 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    from .gate import render_summary, run_gate, should_fail
+    from .gate import (advise_scope, changed_files, post_pr_comment,
+                       render_summary, run_gate, should_fail)
 
-    findings = run_gate(Path(args.root), args.base)
+    root = Path(args.root)
+    findings = run_gate(root, args.base)
     summary = render_summary(findings)
+    if not args.no_advisor:
+        suggestions = advise_scope(root, args.base, changed_files(args.base))
+        if suggestions:
+            summary += ("\n## Scope suggestions\n\nNot enforced — a scope widening "
+                        "takes a ratified edit:\n\n" + "\n".join(suggestions) + "\n")
     print(summary)
+    if args.comment:
+        print(post_pr_comment(summary))
     step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if step_summary:
         with open(step_summary, "a", encoding="utf-8") as fh:
@@ -170,6 +179,10 @@ def main(argv: list[str] | None = None) -> int:
     p_check.add_argument("--root", default=".")
     p_check.add_argument("--base", required=True, help="base ref, e.g. origin/main")
     p_check.add_argument("--fail-on", choices=["never", "block"], default="never")
+    p_check.add_argument("--comment", action="store_true",
+                         help="upsert the summary as a PR comment (needs GITHUB_TOKEN)")
+    p_check.add_argument("--no-advisor", action="store_true",
+                         help="skip out-of-scope suggestions")
     p_check.set_defaults(func=cmd_check)
 
     p_digest = sub.add_parser(

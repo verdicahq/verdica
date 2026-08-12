@@ -14,13 +14,18 @@ FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 # between "adopt this tool" and "migrate your registry first".
 LEGACY_DIRS = ("docs/adr", "doc/adr", "docs/decisions", "docs/architecture/decisions",
                "adr", "docs/adrs", "decisions", "docs/arch/adr", "architecture/decisions")
+_STATUS_WORDS = (r"proposed|accepted|superseded|deprecated|rejected|draft|obsolete|"
+                 r"implemented|approved|done|active|final|withdrawn|retired|pending")
 LEGACY_STATUS_RE = re.compile(
-    r"^\s*(?:[-*]\s*)?(?:#{1,4}\s*)?(?:\*\*)?status(?:\*\*)?\s*[:|]?\s*(?:\*\*)?\s*"
-    r"\n?\s*(proposed|accepted|superseded|deprecated|rejected|draft|obsolete|"
-    r"approved|implemented|done)", re.IGNORECASE | re.MULTILINE)
+    r"(?:^\s*(?:[-*|]\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?status(?:\*\*|__)?\s*[:|]?\s*"
+    r"(?:\*\*|__)?\s*\n{0,2}\s*(?:[-*|]\s*)?(?:\*\*|__)?\s*(" + _STATUS_WORDS + r")"
+    r"|badge/status-(" + _STATUS_WORDS + r"))", re.IGNORECASE | re.MULTILINE)
 LEGACY_TITLE_RE = re.compile(r"^#\s+(?:\d+[.)]?\s*)?(.+)$", re.MULTILINE)
-STATUS_ALIASES = {"approved": "accepted", "implemented": "accepted", "done": "accepted",
-                  "obsolete": "superseded", "draft": "proposed"}
+STATUS_ALIASES = {"approved": "accepted", "implemented": "accepted",
+                  "done": "accepted", "active": "accepted", "final": "accepted",
+                  "obsolete": "superseded", "retired": "superseded",
+                  "withdrawn": "rejected", "draft": "proposed",
+                  "pending": "proposed"}
 
 
 @dataclass
@@ -50,7 +55,8 @@ def parse_legacy(path: Path, text: str) -> Decision:
     decides which paths it governs."""
     title = LEGACY_TITLE_RE.search(text)
     status = LEGACY_STATUS_RE.search(text)
-    raw = (status.group(1).lower() if status else "accepted")
+    raw = (next((g for g in status.groups() if g), "accepted").lower()
+           if status else "accepted")
     return Decision(
         id=path.stem.split("-")[0].lstrip("0") and f"ADR-{path.stem.split('-')[0]}"
            or path.stem,

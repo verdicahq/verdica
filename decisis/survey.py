@@ -34,10 +34,19 @@ CANDIDATE_DIRS = (
     "doc/adr", "docs/arch/adr", "architecture/decisions", "docs/adrs",
     "decisions", "docs/rfc", "rfcs", ".decisions",
 )
+STATUS_WORDS = (r"proposed|accepted|superseded|deprecated|rejected|draft|obsolete|"
+                r"implemented|approved|done|active|final|withdrawn|retired|"
+                r"in\s?review|under\s?review|pending|wip|abandoned")
 STATUS_RE = re.compile(
-    r"^\s*(?:[-*]\s*)?(?:##+\s*)?(?:\*\*)?status(?:\*\*)?\s*[:\|]?\s*(?:\*\*)?"
-    r"(proposed|accepted|superseded|deprecated|rejected|draft|obsolete|"
-    r"implemented|approved|done)", re.IGNORECASE | re.MULTILINE)
+    # "## Status\n\nAccepted", "Status: Accepted", "**Status**: Accepted",
+    # "| Status | Accepted |", "- status: accepted", badge URLs, or a bare
+    # status word standing alone on its own line
+    r"(?:^\s*(?:[-*|]\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?status(?:\*\*|__)?\s*[:|]?\s*"
+    r"(?:\*\*|__)?\s*\n{0,2}\s*(?:[-*|]\s*)?(?:\*\*|__)?\s*(" + STATUS_WORDS + r")"
+    r"|badge/status-(" + STATUS_WORDS + r")"
+    r"|^\s*(?:\*\*|__)?(" + STATUS_WORDS + r")(?:\*\*|__)?\s*$)",
+    re.IGNORECASE | re.MULTILINE)
+
 DATE_RE = re.compile(
     r"^\s*(?:[-*]\s*)?(?:##+\s*)?(?:\*\*)?date(?:\*\*)?\s*[:\|]?\s*(?:\*\*)?\s*"
     r"(\d{4}-\d{2}-\d{2})", re.IGNORECASE | re.MULTILINE)
@@ -132,7 +141,8 @@ def parse_decision(path: str, text: str) -> DecisionFile:
         path=path,
         number=int(num_match.group(1)) if num_match else None,
         title=title[:200],
-        status=(status_match.group(1).lower() if status_match else "unstated"),
+        status=(next((g for g in status_match.groups() if g), "unstated").lower()
+                .replace(" ", "_") if status_match else "unstated"),
         date=date_match.group(1) if date_match else None,
         superseded_by=int(sup.group(1)) if sup else None,
         has_alternatives=bool(ALTERNATIVES_RE.search(text)),

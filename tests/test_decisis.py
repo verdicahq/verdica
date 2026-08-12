@@ -353,3 +353,33 @@ def test_registry_hygiene_flags_dead_scope_and_unscoped(tmp_path):
     assert "DEC-0002" in out and "no longer exists" in out
     assert "DEC-0001" not in out                    # its scope still matches files
     assert "Not enforceable yet (1)" in out and "DEC-0003" in out
+
+
+def test_status_parser_handles_the_shapes_teams_actually_write():
+    from decisis.survey import parse_decision
+    shapes = {
+        "## Status\n\nAccepted\n": "accepted",
+        "Status: Superseded by ADR-12\n": "superseded",
+        "**Status**: Proposed\n": "proposed",
+        "| Status | Accepted |\n": "accepted",
+        "- status: rejected\n": "rejected",
+        "# 3. A decision\n\nAccepted\n\n## Context\n": "accepted",
+        "![](https://img.shields.io/badge/status-deprecated-red)\n": "deprecated",
+    }
+    for text, expected in shapes.items():
+        got = parse_decision("docs/adr/0003-x.md", text).status
+        assert got == expected, f"{text!r} parsed as {got}, expected {expected}"
+
+
+def test_advisor_needs_an_unmistakable_mark(tmp_path):
+    from decisis.formats import Decision
+    from decisis.gate import _distinctive
+    strong, weak = _distinctive(Decision(
+        id="D", title="Design light-first, accent #6D28D9", status="accepted",
+        paths=["app/theme/**"], body="Never a dark variant. See app_colors.dart."))
+    assert "#6d28d9" in strong                   # a hex colour is unmistakable
+    assert "app_colors" in weak                  # an identifier needs corroboration
+    plain, plain_weak = _distinctive(Decision(
+        id="E", title="The registry lives in the repository", status="accepted",
+        paths=["**"], body="Decisions are files reviewed in pull requests."))
+    assert not plain and not plain_weak          # ordinary words are not marks
