@@ -61,6 +61,18 @@ Imported decisions are visible and citable from the first run. They carry no sco
 
 That last check exists because of a measurement: across 166 public registries, **93% had never marked a single decision superseded** and half had taken no new decision in over a year while their code kept changing. Decisions do get reversed; registries just don't record it, and a reader cannot tell what is still in force. The digest is the going back.
 
+## Rule previews
+
+A rule is easy to agree with in the abstract and expensive in practice. When a pull request proposes or edits a decision, decisis replays it over the recent history and reports what it would have done:
+
+```
+## If you merge this, the rules change
+- DEC-0001 Every change to the web build re-verifies the shaders — would have
+  flagged 5 of the last 26 merges: #140 release/0.1.0-11, #135 feat/apple-sign-in, …
+```
+
+Reviewers ratify a rule knowing its cost, not guessing at it. A decision that would have flagged nothing is a decision nobody will feel; one that would have flagged half your merges needs a narrower scope before it is worth merging.
+
 ## Scope suggestions
 
 A change can touch a decision's subject while sitting outside its declared scope — a palette decision scoped to the theme directory says nothing about a colour landing in a static page. When a changed file carries a decision's own marks (a hex colour, an identifier it names) outside every scope, the check says so under **Scope suggestions**. It never gates: widening a ratified scope changes what the team promised to enforce, so it takes a ratified edit.

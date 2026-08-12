@@ -39,17 +39,17 @@ class Finding:
     evidence: str | None
 
 
-def changed_files(base: str) -> list[str]:
+def changed_files(base: str, root: Path | str = ".") -> list[str]:
     out = subprocess.run(
-        ["git", "diff", "--name-only", f"{base}...HEAD"],
+        ["git", "-C", str(root), "diff", "--name-only", f"{base}...HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout
     return [line for line in out.splitlines() if line.strip()]
 
 
-def diff_for(base: str, paths: list[str]) -> str:
+def diff_for(base: str, paths: list[str], root: Path | str = ".") -> str:
     out = subprocess.run(
-        ["git", "diff", f"{base}...HEAD", "--", *paths],
+        ["git", "-C", str(root), "diff", f"{base}...HEAD", "--", *paths],
         check=True, capture_output=True, text=True,
     ).stdout
     if len(out) > MAX_DIFF_CHARS:
@@ -82,13 +82,13 @@ def judge(decision: Decision, diff: str) -> dict | None:
 
 def run_gate(root: Path, base: str) -> list[Finding]:
     decisions = load_decisions(root)
-    changed = changed_files(base)
+    changed = changed_files(base, root)
     hits = scope_hits(decisions, changed)
     by_id = {d.id: d for d in decisions}
     findings: list[Finding] = []
     for dec_id, touched in hits.items():
         decision = by_id[dec_id]
-        verdict = judge(decision, diff_for(base, touched))
+        verdict = judge(decision, diff_for(base, touched, root))
         findings.append(Finding(
             decision=decision,
             touched=touched,
@@ -339,3 +339,55 @@ def post_pr_comment(body: str) -> str:
         return f"comment failed: http {e.code}"
     except OSError as e:
         return f"comment failed: {type(e).__name__}"
+
+
+# ---- decision preview (what a proposed rule would have done) ----------------
+
+def preview_decisions(root: Path, base: str, merges: int = 50) -> list[str]:
+    """For each decision this branch adds or edits, replay it over the recent
+    history: which already-merged changes it would have flagged.
+
+    A rule is easy to agree with in the abstract and expensive in practice.
+    Deploy previews work because they answer "what will this look like after
+    the merge" before the merge; this answers the same question about a rule.
+    """
+    from .bootstrap import recent_merges
+    from .formats import decisions_dir, parse_decision
+
+    ddir = decisions_dir(root)
+    if ddir is None:
+        return []
+    rel = str(ddir.relative_to(root)) if ddir.is_absolute() else str(ddir)
+    touched = [f for f in changed_files(base, root) if f.startswith(rel + "/")
+               and f.endswith(".md")]
+    if not touched:
+        return []
+
+    history = recent_merges(root, merges)
+    lines: list[str] = []
+    for f in touched:
+        path = root / f
+        if not path.exists():
+            continue
+        try:
+            d = parse_decision(path)
+        except ValueError:
+            continue
+        if not d.paths:
+            lines.append(f"- **{d.id}** {d.title} — no scope yet, so it will "
+                         f"appear in the digest but gate nothing.")
+            continue
+        hits = [m for m in history
+                if any(path_matches(p, cf) for p in d.paths for cf in m.files)]
+        if not hits:
+            lines.append(f"- **{d.id}** {d.title} — would have flagged **none** "
+                         f"of the last {len(history)} merges.")
+            continue
+        reverted = [m for m in hits if m.reverted]
+        detail = ", ".join(f"`{m.sha}` {m.subject[:60]}" for m in hits[:3])
+        lines.append(
+            f"- **{d.id}** {d.title} — would have flagged **{len(hits)} of the "
+            f"last {len(history)} merges**"
+            + (f", including {len(reverted)} later reverted" if reverted else "")
+            + f": {detail}{' …' if len(hits) > 3 else ''}")
+    return lines

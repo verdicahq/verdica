@@ -383,3 +383,34 @@ def test_advisor_needs_an_unmistakable_mark(tmp_path):
         id="E", title="The registry lives in the repository", status="accepted",
         paths=["**"], body="Decisions are files reviewed in pull requests."))
     assert not plain and not plain_weak          # ordinary words are not marks
+
+
+def test_preview_replays_a_proposed_decision_over_history(tmp_path):
+    import subprocess
+    from decisis.gate import preview_decisions
+    repo = tmp_path / "r"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "a.py").write_text("x = 1\n")
+    run = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True,
+                                    capture_output=True)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    run("config", "user.email", "t@t"); run("config", "user.name", "t")
+    run("add", "-A"); run("commit", "-qm", "base")
+    # a merged change touching src/
+    run("checkout", "-qb", "feature")
+    (repo / "src" / "b.py").write_text("y = 2\n")
+    run("add", "-A"); run("commit", "-qm", "add b")
+    run("checkout", "-q", "master") if (repo / ".git" / "refs" / "heads" / "master").exists() \
+        else run("checkout", "-q", "main")
+    run("merge", "--no-ff", "-q", "feature", "-m", "Merge feature")
+    base = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+    # now a branch that proposes a decision scoped to src/
+    run("checkout", "-qb", "add-decision")
+    ddir = repo / ".decisions"; ddir.mkdir()
+    (ddir / "DEC-0001-x.md").write_text(
+        "---\nid: DEC-0001\ntitle: Rule about src\nstatus: proposed\n"
+        "scope:\n  paths:\n    - \"src/**\"\n---\n\nbody\n")
+    run("add", "-A"); run("commit", "-qm", "propose")
+    out = "\n".join(preview_decisions(repo, base))
+    assert "DEC-0001" in out and "would have flagged **1 of the last 1 merges**" in out

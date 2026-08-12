@@ -40,16 +40,20 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def cmd_check(args: argparse.Namespace) -> int:
     from .gate import (advise_scope, changed_files, post_pr_comment,
-                       render_summary, run_gate, should_fail)
+                       preview_decisions, render_summary, run_gate, should_fail)
 
     root = Path(args.root)
     findings = run_gate(root, args.base)
     summary = render_summary(findings)
     if not args.no_advisor:
-        suggestions = advise_scope(root, args.base, changed_files(args.base))
+        suggestions = advise_scope(root, args.base, changed_files(args.base, root))
         if suggestions:
             summary += ("\n## Scope suggestions\n\nNot enforced — a scope widening "
                         "takes a ratified edit:\n\n" + "\n".join(suggestions) + "\n")
+    preview = preview_decisions(root, args.base)
+    if preview:
+        summary += ("\n## If you merge this, the rules change\n\nReplayed over "
+                    "the recent history:\n\n" + "\n".join(preview) + "\n")
     print(summary)
     if args.comment:
         print(post_pr_comment(summary))
