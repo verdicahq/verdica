@@ -97,10 +97,17 @@ Each decision declares how the gate reacts to a violation: `warn` (default — t
 decisis bootstrap                      # report-only: what it would propose
 decisis bootstrap --notes ~/meetings   # include meeting exports (Granola, retros)
 decisis bootstrap --write              # write proposals into .decisions/
+decisis bootstrap --html report.html   # a page anyone can review, terminal or not
 decisis bootstrap --pr                 # write, branch, and open the bootstrap PR
 ```
 
 The bootstrap extracts decision candidates from what the repo already contains — normative comments and docs, reverts, convention files, plus any notes folder you point it at — clusters the evidence, backtests the proposals against your recent merges (noisy scopes get demoted, decisions that would have caught a reverted merge get a receipt), and asks at most five one-tap questions for the calls it genuinely cannot make alone. Everything it proposes cites its evidence; nothing is invented. Machine-enforced rules (lint, CI) are recognized and linked, never duplicated.
+
+## Reviewing without a terminal
+
+`--html` renders the same run as a page: each proposed rule with the evidence it came from, the scope it would take, and what it would have done to recent merges. It is meant for the people who care most that decisions survive — leads, founders, product — who are not going to read a terminal. Keep what is real, drop the rest, merge the pull request: that is the ratification.
+
+The hosted flow follows the same shape and the same rule: the dashboard composes pull requests, it is never the source of truth. Whatever it shows lives in your repository, and uninstalling leaves it there.
 
 ## Meeting notes ingestion
 

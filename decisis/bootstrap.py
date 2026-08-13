@@ -505,7 +505,7 @@ def render_decision(d: Draft) -> str:
 def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
                   write: bool = False, notes: Path | None = None,
                   answers: list[int] | None = None,
-                  interactive: bool = False) -> str:
+                  interactive: bool = False, html_out: Path | None = None) -> str:
     mentions = scan_normative(root) + scan_reverts(root)
     if notes and notes.is_dir():
         mentions += scan_notes(notes)
@@ -551,6 +551,14 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
         lines += ["", "Onboarding answers (defaults where unanswered):", *[f"  {q}" for q in qa_log]]
     if enforcement:
         lines += ["", "T1 (already enforced, skipped): " + ", ".join(enforcement[:8])]
+
+    if html_out:
+        from .report import render_report
+
+        html_out.write_text(render_report(
+            root.resolve().name, kept, parked, len(mentions), len(merges),
+            enforcement), encoding="utf-8")
+        lines.append(f"\nwrote {html_out}")
 
     if write:
         ddir = root / ".decisions"

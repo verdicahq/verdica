@@ -414,3 +414,20 @@ def test_preview_replays_a_proposed_decision_over_history(tmp_path):
     run("add", "-A"); run("commit", "-qm", "propose")
     out = "\n".join(preview_decisions(repo, base))
     assert "DEC-0001" in out and "would have flagged **1 of the last 1 merges**" in out
+
+
+def test_html_report_escapes_and_shows_impact():
+    from decisis.bootstrap import Draft, Mention
+    from decisis.report import render_report
+    d = Draft(id="DEC-0001", title="Never ship <script> unescaped",
+              tier="T2", severity="block", scope=["src/**"],
+              evidence=[Mention("src/a.py", 12, "never ship <script>", "comment")],
+              category="engineering", noise=0.2, receipts=["abc Revert bad merge"])
+    quiet = Draft(id="DEC-0002", title="A quiet rule", tier="T3", severity="warn",
+                  scope=["ci/**"], evidence=[], category="process")
+    out = render_report("myrepo", [d, quiet], [], mentions=40, merges=30,
+                        enforcement=[".github/workflows/ci.yml"])
+    assert "&lt;script&gt;" in out and "<script>" not in out.split("<style>")[1]
+    assert "Already cost a revert" in out          # receipt outranks noise
+    assert "would have flagged none" in out.lower()  # a rule with no history says so
+    assert "myrepo" in out and "src/**" in out

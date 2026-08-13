@@ -89,6 +89,7 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
         write=args.write or args.pr,
         notes=Path(args.notes) if args.notes else None,
         answers=answers, interactive=interactive and not answers,
+        html_out=Path(args.html) if args.html else None,
     )
     print(report)
     if args.pr:
@@ -203,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     p_boot.add_argument("--prs", type=int, default=50, help="merges to backtest")
     p_boot.add_argument("--write", action="store_true",
                         help="write proposals into .decisions/")
+    p_boot.add_argument("--html", help="also write a reviewable HTML report here")
     p_boot.add_argument("--notes", help="external notes folder (meeting exports, postmortems)")
     p_boot.add_argument("--interactive", action="store_true",
                         help="force the onboarding questions on stdin")
