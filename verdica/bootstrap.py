@@ -533,7 +533,7 @@ def run_bootstrap(root: Path, top: int = 12, prs: int = 50,
     qa_log = ask(collect_questions(kept), answers, interactive)
 
     lines = [
-        f"# decisis bootstrap — {root.name}",
+        f"# verdica bootstrap — {root.name}",
         f"mentions: {len(mentions)}  clusters: {len(clusters)}  "
         f"merges backtested: {len(merges)}",
         f"proposed: {len(kept)}  parked: {len(parked)}  "

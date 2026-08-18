@@ -5,8 +5,8 @@ status: accepted
 severity: block
 scope:
   paths:
-    - "decisis/gate.py"
-    - "decisis/cli.py"
+    - "verdica/gate.py"
+    - "verdica/cli.py"
     - "action.yml"
 deciders: ["@AlbeMiglio"]
 date: 2026-08-09

@@ -66,7 +66,7 @@ NUM_RE = re.compile(r"(\d{1,4})")
 def _get(url: str, token: str, accept: str = "application/vnd.github+json"):
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {token}", "Accept": accept,
-        "User-Agent": "decisis-survey",
+        "User-Agent": "verdica-survey",
     })
     with urllib.request.urlopen(req, timeout=60) as resp:
         return resp.read() if accept.startswith("application/vnd.github.raw") \

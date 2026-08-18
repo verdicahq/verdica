@@ -5,7 +5,7 @@ status: accepted
 severity: warn
 scope:
   paths:
-    - "decisis/**"
+    - "verdica/**"
     - "pyproject.toml"
 deciders: ["@AlbeMiglio"]
 date: 2026-08-09

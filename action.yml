@@ -1,4 +1,4 @@
-name: "Decisis"
+name: "Verdica"
 description: "Checks pull requests against the decisions recorded in .decisions/"
 branding:
   icon: "shield"
@@ -33,7 +33,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install decisis
+    - name: Install verdica
       shell: bash
       run: pip install --quiet "${{ github.action_path }}"
     - name: Check diff against recorded decisions
@@ -44,6 +44,6 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         git fetch --no-tags --depth=200 origin "${{ inputs.base }}"
-        decisis check --base "origin/${{ inputs.base }}" \
+        verdica check --base "origin/${{ inputs.base }}" \
           --fail-on "${{ inputs.fail-on }}" \
           ${{ inputs.comment == 'true' && '--comment' || '' }}

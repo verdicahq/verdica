@@ -1,10 +1,10 @@
-# decisis
+# verdica
 
 Team decisions as files in the repo, enforced on every diff.
 
 Teams decide things — "integrations must not add YAML config options", "Postgres, not Mongo, for the order store" — and then the decision gets violated months later by someone who wasn't in the room. Review misses it, the change merges, and the cost is paid twice: once as an incident or a revert, once as the re-litigation of a settled question. It happens to the best-run projects: [home-assistant/core#149379](https://github.com/home-assistant/core/pull/149379) passed review and merged, then had to be [reverted](https://github.com/home-assistant/core/pull/149544) because it violated two recorded architecture decisions.
 
-decisis keeps decisions where the code is and checks every pull request against them.
+verdica keeps decisions where the code is and checks every pull request against them.
 
 - **Decisions are files** in `.decisions/` — reviewed, ratified, and superseded through ordinary PRs. `CODEOWNERS` on the directory defines who ratifies. No lock-in: it's your repo. See [SPEC.md](SPEC.md).
 - **The gate is precision-first.** A deterministic path-scope match decides *which* decisions govern a change; only on a scope hit does an LLM judge whether the diff *contradicts* the decision. No key configured → the check still reports "this change touches the scope of DEC-0007", which is most of the value at zero cost.
@@ -13,8 +13,8 @@ decisis keeps decisions where the code is and checks every pull request against 
 ## Use as a GitHub Action
 
 ```yaml
-# .github/workflows/decisis.yml
-name: decisis
+# .github/workflows/verdica.yml
+name: verdica
 on: [pull_request]
 jobs:
   check:
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: AlbeMiglio/decisis@main
+      - uses: AlbeMiglio/verdica@main
         with:
           base: ${{ github.base_ref }}
           mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}  # optional
@@ -35,35 +35,35 @@ Runs in your CI, with your key. Nothing leaves your infrastructure except the di
 ## CLI
 
 ```bash
-pip install decisis
+pip install verdica
 
-decisis init                      # scaffold .decisions/ with a template
-decisis check --base origin/main  # check the current branch's diff
-decisis digest                    # what changed in the registry, and what stands
-decisis mine owner/repo           # mine a repo's history for decision citations
+verdica init                      # scaffold .decisions/ with a template
+verdica check --base origin/main  # check the current branch's diff
+verdica digest                    # what changed in the registry, and what stands
+verdica mine owner/repo           # mine a repo's history for decision citations
 ```
 
-`decisis mine` classifies every PR that cites a decision record (ADR/KEP/DEC/RFC) by timeline: cited during review, cited only after the merge, or a revert citing a decision — the last two are violations that slipped through. Run it on your own repository to see what a gate would have caught; it needs `GITHUB_TOKEN` and nothing else.
+`verdica mine` classifies every PR that cites a decision record (ADR/KEP/DEC/RFC) by timeline: cited during review, cited only after the merge, or a revert citing a decision — the last two are violations that slipped through. Run it on your own repository to see what a gate would have caught; it needs `GITHUB_TOKEN` and nothing else.
 
 ## Already have ADRs?
 
-decisis reads an existing registry **where it already is** — `docs/adr`, `doc/adr`, `docs/decisions`, and the other conventional locations — in the format teams already write (Nygard, MADR). No migration, no reformatting:
+verdica reads an existing registry **where it already is** — `docs/adr`, `doc/adr`, `docs/decisions`, and the other conventional locations — in the format teams already write (Nygard, MADR). No migration, no reformatting:
 
 ```bash
-cd your-repo && decisis digest
+cd your-repo && verdica digest
 ```
 
 Imported decisions are visible and citable from the first run. They carry no scope yet, so they are digest-only; add a `scope.paths` to any one of them and it starts gating pull requests. `.decisions/` takes precedence when present.
 
 ## Digest
 
-`decisis digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, what still awaits ratification, and **registry hygiene** — decisions whose scope points at code that no longer exists, decisions not yet enforceable, and pairs where one decision appears to reverse another while both are still marked accepted.
+`verdica digest` is the non-gating half: what was ratified or proposed this week, the standing registry grouped by category, what still awaits ratification, and **registry hygiene** — decisions whose scope points at code that no longer exists, decisions not yet enforceable, and pairs where one decision appears to reverse another while both are still marked accepted.
 
 That last check exists because of a measurement: across 166 public registries, **93% had never marked a single decision superseded** and half had taken no new decision in over a year while their code kept changing. Decisions do get reversed; registries just don't record it, and a reader cannot tell what is still in force. The digest is the going back.
 
 ## Rule previews
 
-A rule is easy to agree with in the abstract and expensive in practice. When a pull request proposes or edits a decision, decisis replays it over the recent history and reports what it would have done:
+A rule is easy to agree with in the abstract and expensive in practice. When a pull request proposes or edits a decision, verdica replays it over the recent history and reports what it would have done:
 
 ```
 ## If you merge this, the rules change
@@ -86,19 +86,19 @@ Each decision declares how the gate reacts to a violation: `warn` (default — t
 | Env var | Default | |
 |---|---|---|
 | `MISTRAL_API_KEY` | — | enables judge + distillation on Mistral (the reference provider) |
-| `ANTHROPIC_API_KEY` | — | same, on Anthropic (`pip install decisis[anthropic]`) |
-| `DECISIS_PROVIDER` | auto (mistral first) | force `mistral` or `anthropic` when both keys exist |
-| `DECISIS_MODEL` | per provider | `mistral-large-latest` / `claude-opus-5` |
-| `GITHUB_TOKEN` | — | required by `decisis mine` |
+| `ANTHROPIC_API_KEY` | — | same, on Anthropic (`pip install verdica[anthropic]`) |
+| `VERDICA_PROVIDER` | auto (mistral first) | force `mistral` or `anthropic` when both keys exist |
+| `VERDICA_MODEL` | per provider | `mistral-large-latest` / `claude-opus-5` |
+| `GITHUB_TOKEN` | — | required by `verdica mine` |
 
 ## Bootstrap (from zero to hero)
 
 ```bash
-decisis bootstrap                      # report-only: what it would propose
-decisis bootstrap --notes ~/meetings   # include meeting exports (Granola, retros)
-decisis bootstrap --write              # write proposals into .decisions/
-decisis bootstrap --html report.html   # a page anyone can review, terminal or not
-decisis bootstrap --pr                 # write, branch, and open the bootstrap PR
+verdica bootstrap                      # report-only: what it would propose
+verdica bootstrap --notes ~/meetings   # include meeting exports (Granola, retros)
+verdica bootstrap --write              # write proposals into .decisions/
+verdica bootstrap --html report.html   # a page anyone can review, terminal or not
+verdica bootstrap --pr                 # write, branch, and open the bootstrap PR
 ```
 
 The bootstrap extracts decision candidates from what the repo already contains — normative comments and docs, reverts, convention files, plus any notes folder you point it at — clusters the evidence, backtests the proposals against your recent merges (noisy scopes get demoted, decisions that would have caught a reverted merge get a receipt), and asks at most five one-tap questions for the calls it genuinely cannot make alone. Everything it proposes cites its evidence; nothing is invented. Machine-enforced rules (lint, CI) are recognized and linked, never duplicated.
@@ -113,7 +113,7 @@ The hosted flow follows the same shape and the same rule: the dashboard composes
 
 Decisions are born in meetings; three ways to get them in front of the extractor:
 
-1. **Export a note** (any notetaker → Markdown) into a folder and run `decisis bootstrap --notes <folder>`.
+1. **Export a note** (any notetaker → Markdown) into a folder and run `verdica bootstrap --notes <folder>`.
 2. **Keep notes in the repo**: files under `meetings/`, `minutes/`, `verbali/`, `retros/`, `postmortems/` are treated as meeting sources — full provenance, digest-only (they never gate a diff and never invent scope paths).
 3. **Granola via Zapier** (Granola's official outbound channel; its local cache is encrypted): Zap trigger *"Note added to Granola folder"* → GitHub action *"Create file"* into `docs/meetings/{{title}}-{{date}}.md`. Every meeting becomes a commit; the next bootstrap run distills it.
 

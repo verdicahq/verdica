@@ -1,4 +1,4 @@
-"""decisis — decisions as files, enforced on every diff."""
+"""verdica — decisions as files, enforced on every diff."""
 
 from __future__ import annotations
 
@@ -99,13 +99,13 @@ def cmd_bootstrap(args: argparse.Namespace) -> int:
         if any(not line[3:].startswith(".decisions/") for line in dirty.splitlines()):
             print("\nrefusing --pr: working tree has changes outside .decisions/")
             return 1
-        for cmd in (["git", "-C", root, "checkout", "-b", "decisis/bootstrap"],
+        for cmd in (["git", "-C", root, "checkout", "-b", "verdica/bootstrap"],
                     ["git", "-C", root, "add", ".decisions"],
                     ["git", "-C", root, "commit", "-m",
-                     "Bootstrap the decision registry\n\nProposed by decisis "
+                     "Bootstrap the decision registry\n\nProposed by verdica "
                      "bootstrap from the repository's own evidence. Review each "
                      "decision, delete what is wrong, merge to ratify."],
-                    ["git", "-C", root, "push", "-u", "origin", "decisis/bootstrap"]):
+                    ["git", "-C", root, "push", "-u", "origin", "verdica/bootstrap"]):
             if subprocess.run(cmd).returncode != 0:
                 return 1
         pr = subprocess.run(
@@ -173,7 +173,7 @@ def cmd_mine(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="decisis", description=__doc__)
+    parser = argparse.ArgumentParser(prog="verdica", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_init = sub.add_parser("init", help="scaffold .decisions/ in a repository")

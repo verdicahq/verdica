@@ -6,9 +6,9 @@ severity: block
 category: engineering
 scope:
   paths:
-    - "decisis/llm.py"
-    - "decisis/gate.py"
-    - "decisis/bootstrap.py"
+    - "verdica/llm.py"
+    - "verdica/gate.py"
+    - "verdica/bootstrap.py"
     - "pyproject.toml"
 deciders: ["@AlbeMiglio"]
 date: 2026-08-09
@@ -16,7 +16,7 @@ date: 2026-08-09
 
 ## Decision
 
-All model calls go through one provider-neutral layer (`decisis/llm.py`): a single JSON-in/JSON-out completion function. The repo owner picks the provider via their credentials and `DECISIS_PROVIDER`; auto-detection prefers Mistral when both keys are present. No provider SDK is a required dependency (Mistral speaks stdlib HTTP; the Anthropic SDK is an optional extra). Every feature must degrade to keyless mode.
+All model calls go through one provider-neutral layer (`verdica/llm.py`): a single JSON-in/JSON-out completion function. The repo owner picks the provider via their credentials and `VERDICA_PROVIDER`; auto-detection prefers Mistral when both keys are present. No provider SDK is a required dependency (Mistral speaks stdlib HTTP; the Anthropic SDK is an optional extra). Every feature must degrade to keyless mode.
 
 ## Rationale
 

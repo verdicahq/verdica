@@ -1,6 +1,6 @@
 """Provider-neutral LLM layer (DEC-0008): one function, JSON in, JSON out.
 
-Provider selection, in order: DECISIS_PROVIDER env var if set, else Mistral
+Provider selection, in order: VERDICA_PROVIDER env var if set, else Mistral
 when MISTRAL_API_KEY is present, else Anthropic when ANTHROPIC_API_KEY is
 present. Mistral speaks plain HTTP (stdlib only); Anthropic uses its SDK
 when installed. No provider is ever required: callers treat None from
@@ -25,7 +25,7 @@ last_error: str | None = None
 
 
 def provider() -> str | None:
-    forced = os.environ.get("DECISIS_PROVIDER")
+    forced = os.environ.get("VERDICA_PROVIDER")
     if forced:
         return forced
     if os.environ.get("MISTRAL_API_KEY"):
@@ -50,7 +50,7 @@ def complete_json(prompt: str, schema: dict) -> dict | None:
 
 
 def _model(p: str) -> str:
-    return os.environ.get("DECISIS_MODEL") or DEFAULT_MODELS[p]
+    return os.environ.get("VERDICA_MODEL") or DEFAULT_MODELS[p]
 
 
 def _mistral(prompt: str, schema: dict) -> dict | None:

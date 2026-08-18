@@ -9,5 +9,5 @@ work well, with any notetaker or none. Two things matter:
 - **the why**: a decision without its rationale is unenforceable six months
   later — nobody can tell whether the constraint still holds.
 
-Drop filled notes in a folder and run `decisis bootstrap --notes <folder>`,
+Drop filled notes in a folder and run `verdica bootstrap --notes <folder>`,
 or commit them under `meetings/` in the repo.

@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from decisis.formats import load_decisions, parse_decision, path_matches, scope_hits
-from decisis.gate import Finding, should_fail
-from decisis.formats import Decision
+from verdica.formats import load_decisions, parse_decision, path_matches, scope_hits
+from verdica.gate import Finding, should_fail
+from verdica.formats import Decision
 
 
 def write_decision(ddir: Path, id: str, status: str = "accepted",
@@ -39,7 +39,7 @@ def test_missing_frontmatter_rejected_in_native_dir(tmp_path):
 
 
 def test_legacy_adr_read_in_place(tmp_path):
-    from decisis.formats import decisions_dir, load_decisions
+    from verdica.formats import decisions_dir, load_decisions
     adr = tmp_path / "docs" / "adr"
     adr.mkdir(parents=True)
     (adr / "0001-record-decisions.md").write_text(
@@ -59,7 +59,7 @@ def test_legacy_adr_read_in_place(tmp_path):
 
 
 def test_native_dir_wins_over_legacy(tmp_path):
-    from decisis.formats import decisions_dir
+    from verdica.formats import decisions_dir
     (tmp_path / "docs" / "adr").mkdir(parents=True)
     for n in range(3):
         (tmp_path / "docs" / "adr" / f"{n}.md").write_text("# x\n")
@@ -110,7 +110,7 @@ def test_should_fail_only_on_high_confidence_block():
 
 
 def test_miner_classification():
-    from decisis.miner import MinedPR  # dataclass shape stays importable
+    from verdica.miner import MinedPR  # dataclass shape stays importable
     # timeline logic lives in analyze_pr against the live API; the pure rule is:
     # cite_at <= merged_at -> cited_pre_merge, else flagged_post_merge.
     assert MinedPR(
@@ -121,7 +121,7 @@ def test_miner_classification():
 
 
 def test_bootstrap_clustering_merges_shared_tokens():
-    from decisis.bootstrap import Mention, cluster_mentions
+    from verdica.bootstrap import Mention, cluster_mentions
     ms = [
         Mention("lib/theme.dart", 10, "never change #6D28D9 without a decision", "comment"),
         Mention("web/legal.html", 5, "accent stays #6D28D9 on every surface", "comment"),
@@ -133,7 +133,7 @@ def test_bootstrap_clustering_merges_shared_tokens():
 
 
 def test_bootstrap_backtest_demotes_and_receipts():
-    from decisis.bootstrap import Draft, Mention, Merge, backtest
+    from verdica.bootstrap import Draft, Mention, Merge, backtest
     repo_ev = [Mention("src/a.py", 1, "never do the thing", "comment")]
     noisy = Draft(id="DEC-0001", title="t", tier="T3", severity="warn",
                   scope=["**"], evidence=repo_ev)
@@ -149,7 +149,7 @@ def test_bootstrap_backtest_demotes_and_receipts():
 
 def test_bootstrap_normative_scan_filters_code_lines(tmp_path):
     import subprocess
-    from decisis.bootstrap import scan_normative
+    from verdica.bootstrap import scan_normative
     repo = tmp_path / "r"
     repo.mkdir()
     (repo / "a.py").write_text(
@@ -167,7 +167,7 @@ def test_bootstrap_normative_scan_filters_code_lines(tmp_path):
 
 
 def test_scan_notes_and_no_scope_from_notes(tmp_path):
-    from decisis.bootstrap import Cluster, Mention, distill, scan_notes
+    from verdica.bootstrap import Cluster, Mention, distill, scan_notes
     notes = tmp_path / "meetings"
     notes.mkdir()
     (notes / "retro.md").write_text(
@@ -180,7 +180,7 @@ def test_scan_notes_and_no_scope_from_notes(tmp_path):
 
 
 def test_questions_defaults_and_choices():
-    from decisis.bootstrap import Draft, Question, collect_questions, ask
+    from verdica.bootstrap import Draft, Question, collect_questions, ask
     with_receipt = Draft(id="DEC-0001", title="t", tier="T2", severity="block",
                          scope=["ci/**"], evidence=[],
                          receipts=["abc revert"])
@@ -200,21 +200,21 @@ def test_questions_defaults_and_choices():
 
 
 def test_llm_provider_selection(monkeypatch):
-    from decisis import llm
-    for var in ("DECISIS_PROVIDER", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY"):
+    from verdica import llm
+    for var in ("VERDICA_PROVIDER", "MISTRAL_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     assert llm.provider() is None and not llm.available()
     monkeypatch.setenv("ANTHROPIC_API_KEY", "x")
     assert llm.provider() == "anthropic"
     monkeypatch.setenv("MISTRAL_API_KEY", "y")
     assert llm.provider() == "mistral"  # mistral preferred when both exist
-    monkeypatch.setenv("DECISIS_PROVIDER", "anthropic")
+    monkeypatch.setenv("VERDICA_PROVIDER", "anthropic")
     assert llm.provider() == "anthropic"  # explicit owner choice wins
 
 
 def test_inrepo_meeting_notes_are_note_kind(tmp_path):
     import subprocess
-    from decisis.bootstrap import Cluster, distill, scan_normative
+    from verdica.bootstrap import Cluster, distill, scan_normative
     repo = tmp_path / "r"
     (repo / "docs" / "meetings").mkdir(parents=True)
     (repo / "docs" / "meetings" / "sync.md").write_text(
@@ -236,7 +236,7 @@ def test_inrepo_meeting_notes_are_note_kind(tmp_path):
 
 def test_digest_groups_by_category_and_flags_gating(tmp_path):
     import subprocess
-    from decisis.gate import render_digest
+    from verdica.gate import render_digest
     repo = tmp_path / "r"
     ddir = repo / ".decisions"
     ddir.mkdir(parents=True)
@@ -262,7 +262,7 @@ def test_digest_groups_by_category_and_flags_gating(tmp_path):
 
 
 def test_survey_parses_decision_anatomy():
-    from decisis.survey import parse_decision
+    from verdica.survey import parse_decision
     d = parse_decision("docs/adr/0007-use-postgres.md", """# 7. Use Postgres
 
 Date: 2024-03-01
@@ -286,7 +286,7 @@ Ops must run Postgres.
 
 
 def test_survey_aggregate_handles_empty_and_mixed():
-    from decisis.survey import RepoSurvey, aggregate
+    from verdica.survey import RepoSurvey, aggregate
     empty = RepoSurvey(repo="a/b", error="no decision directory")
     assert aggregate([empty])["with_registry"] == 0
     full = RepoSurvey(repo="c/d", dir="adr", n=2, statuses={"accepted": 1, "superseded": 1},
@@ -299,7 +299,7 @@ def test_survey_aggregate_handles_empty_and_mixed():
 
 
 def test_conflict_candidates_skips_parallel_families():
-    from decisis.survey import conflict_candidates
+    from verdica.survey import conflict_candidates
     def d(path, title):
         return {"path": path, "title": title, "status": "accepted", "date": None}
     family = [d("a.md", "0013. Installation method: Home Assistant Container"),
@@ -311,7 +311,7 @@ def test_conflict_candidates_skips_parallel_families():
 
 
 def test_conflict_candidates_require_reversal_or_near_duplicate():
-    from decisis.survey import conflict_candidates
+    from verdica.survey import conflict_candidates
     def d(path, title):
         return {"path": path, "title": title, "status": "accepted", "date": None}
     # umbrella + the variants it introduces: related, not conflicting
@@ -330,7 +330,7 @@ def test_conflict_candidates_require_reversal_or_near_duplicate():
 
 def test_registry_hygiene_flags_dead_scope_and_unscoped(tmp_path):
     import subprocess
-    from decisis.gate import registry_hygiene
+    from verdica.gate import registry_hygiene
     repo = tmp_path / "r"
     ddir = repo / ".decisions"
     ddir.mkdir(parents=True)
@@ -356,7 +356,7 @@ def test_registry_hygiene_flags_dead_scope_and_unscoped(tmp_path):
 
 
 def test_status_parser_handles_the_shapes_teams_actually_write():
-    from decisis.survey import parse_decision
+    from verdica.survey import parse_decision
     shapes = {
         "## Status\n\nAccepted\n": "accepted",
         "Status: Superseded by ADR-12\n": "superseded",
@@ -372,8 +372,8 @@ def test_status_parser_handles_the_shapes_teams_actually_write():
 
 
 def test_advisor_needs_an_unmistakable_mark(tmp_path):
-    from decisis.formats import Decision
-    from decisis.gate import _distinctive
+    from verdica.formats import Decision
+    from verdica.gate import _distinctive
     strong, weak = _distinctive(Decision(
         id="D", title="Design light-first, accent #6D28D9", status="accepted",
         paths=["app/theme/**"], body="Never a dark variant. See app_colors.dart."))
@@ -387,7 +387,7 @@ def test_advisor_needs_an_unmistakable_mark(tmp_path):
 
 def test_preview_replays_a_proposed_decision_over_history(tmp_path):
     import subprocess
-    from decisis.gate import preview_decisions
+    from verdica.gate import preview_decisions
     repo = tmp_path / "r"
     (repo / "src").mkdir(parents=True)
     (repo / "src" / "a.py").write_text("x = 1\n")
@@ -417,8 +417,8 @@ def test_preview_replays_a_proposed_decision_over_history(tmp_path):
 
 
 def test_html_report_escapes_and_shows_impact():
-    from decisis.bootstrap import Draft, Mention
-    from decisis.report import render_report
+    from verdica.bootstrap import Draft, Mention
+    from verdica.report import render_report
     d = Draft(id="DEC-0001", title="Never ship <script> unescaped",
               tier="T2", severity="block", scope=["src/**"],
               evidence=[Mention("src/a.py", 12, "never ship <script>", "comment")],

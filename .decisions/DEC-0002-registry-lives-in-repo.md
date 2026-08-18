@@ -5,7 +5,7 @@ status: accepted
 severity: block
 scope:
   paths:
-    - "decisis/**"
+    - "verdica/**"
     - "SPEC.md"
 deciders: ["@AlbeMiglio"]
 date: 2026-08-09

@@ -128,7 +128,7 @@ def render_digest(root: Path, since: str) -> str:
 
     decisions = load_decisions(root)
     if not decisions:
-        return "No decisions recorded yet. Run `decisis bootstrap`.\n"
+        return "No decisions recorded yet. Run `verdica bootstrap`.\n"
     from .formats import decisions_dir
 
     ddir = decisions_dir(root)
@@ -291,7 +291,7 @@ def advise_scope(root: Path, base: str, changed: list[str]) -> list[str]:
 
 # ---- PR comment (upsert, never spam) ---------------------------------------
 
-MARKER = "<!-- decisis -->"
+MARKER = "<!-- verdica -->"
 
 
 def post_pr_comment(body: str) -> str:
@@ -317,7 +317,7 @@ def post_pr_comment(body: str) -> str:
     api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     headers = {"Authorization": f"Bearer {token}",
                "Accept": "application/vnd.github+json",
-               "User-Agent": "decisis"}
+               "User-Agent": "verdica"}
 
     def call(url: str, data: dict | None = None, method: str = "GET"):
         req = urllib.request.Request(

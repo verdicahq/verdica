@@ -7,8 +7,8 @@ category: product
 scope:
   paths:
     - "SPEC.md"
-    - "decisis/formats.py"
-    - "decisis/bootstrap.py"
+    - "verdica/formats.py"
+    - "verdica/bootstrap.py"
 deciders: ["@AlbeMiglio"]
 date: 2026-08-09
 ---

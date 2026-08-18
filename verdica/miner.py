@@ -32,7 +32,7 @@ def _get(url: str, token: str) -> dict | list:
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
-        "User-Agent": "decisis-miner",
+        "User-Agent": "verdica-miner",
     })
     with urllib.request.urlopen(req) as resp:
         return json.load(resp)

@@ -6,7 +6,7 @@ severity: block
 category: product
 scope:
   paths:
-    - "decisis/bootstrap.py"
+    - "verdica/bootstrap.py"
     - "README.md"
     - "SPEC.md"
 deciders: ["@AlbeMiglio"]
