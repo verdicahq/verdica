@@ -1,5 +1,6 @@
 name: "Verdica"
 description: "Checks pull requests against the decisions recorded in .decisions/"
+author: "verdicahq"
 branding:
   icon: "shield"
   color: "gray-dark"
