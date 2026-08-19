@@ -1,4 +1,4 @@
-# verdica
+# Verdica
 
 Team decisions as files in the repo, enforced on every diff.
 
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: AlbeMiglio/verdica@main
+      - uses: verdicahq/verdica@v0
         with:
           base: ${{ github.base_ref }}
           mistral-api-key: ${{ secrets.MISTRAL_API_KEY }}  # optional
