@@ -431,3 +431,35 @@ def test_html_report_escapes_and_shows_impact():
     assert "Already cost a revert" in out          # receipt outranks noise
     assert "would have flagged none" in out.lower()  # a rule with no history says so
     assert "myrepo" in out and "src/**" in out
+
+
+def test_nature_tradeoff_roundtrip(tmp_path):
+    ddir = tmp_path / ".decisions"
+    ddir.mkdir()
+    (ddir / "DEC-0001-fee-hidden.md").write_text(
+        "---\nid: DEC-0001\ntitle: While in-app payments are disabled, the "
+        "call-out fee is not shown\nstatus: accepted\nseverity: warn\n"
+        "nature: tradeoff\nrevisit_when: \"in-app payments go live\"\n"
+        "scope:\n  paths:\n    - \"app/**\"\ndeciders: []\n---\n\nbody\n",
+        encoding="utf-8")
+    (ddir / "DEC-0002-implied.md").write_text(
+        "---\nid: DEC-0002\ntitle: Implied tradeoff\nstatus: accepted\n"
+        "revisit_when: \"the beta ends\"\n"
+        "scope:\n  paths:\n    - \"x/**\"\ndeciders: []\n---\n\nbody\n",
+        encoding="utf-8")
+    from verdica.formats import load_decisions
+    decisions = {d.id: d for d in load_decisions(tmp_path)}
+    assert decisions["DEC-0001"].nature == "tradeoff"
+    assert decisions["DEC-0001"].revisit_when == "in-app payments go live"
+    assert decisions["DEC-0002"].nature == "tradeoff"  # implied by revisit_when
+
+    from verdica.gate import Finding, render_digest, render_summary
+    summary = render_summary([Finding(
+        decision=decisions["DEC-0001"], touched=["app/main.dart"],
+        contradicts=None, confidence=None, evidence=None)])
+    assert "revisit when: in-app payments go live" in summary
+    assert "supersede it" in summary
+
+    digest = render_digest(tmp_path, "7 days ago")
+    assert "Tradeoffs due for review (2)" in digest
+    assert "the beta ends" in digest

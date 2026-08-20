@@ -70,7 +70,12 @@ def judge(decision: Decision, diff: str) -> dict | None:
     prompt = (
         "A team recorded this decision:\n\n"
         f"# {decision.id}: {decision.title}\n{decision.body.strip()}\n\n"
-        "Below is a diff that touches files inside the decision's scope. "
+        + (f"NOTE: this decision is a TEMPORARY TRADEOFF, valid while its "
+           f"condition holds (revisit when: {decision.revisit_when}). A diff "
+           f"that fulfils that condition calls for superseding the decision, "
+           f"not for a violation verdict — if that is what you see, say so "
+           f"in `evidence`.\n\n" if decision.nature == "tradeoff" else "")
+        + "Below is a diff that touches files inside the decision's scope. "
         "Judge whether the diff CONTRADICTS the decision — i.e. does what the "
         "decision ruled out, or undoes what it mandates. Touching the scope "
         "without contradicting the decision is not a violation. Cite the "
@@ -115,6 +120,10 @@ def render_summary(findings: list[Finding]) -> str:
             lines.append(f"Evidence: {f.evidence}")
         else:
             lines.append(f"Verdict: consistent (confidence: {f.confidence})")
+        if d.nature == "tradeoff":
+            lines.append(f"_Tradeoff — revisit when: "
+                         f"{d.revisit_when or 'unstated'}. If that has "
+                         f"happened, supersede it rather than code around it._")
         lines.append("")
     return "\n".join(lines)
 
@@ -166,6 +175,12 @@ def render_digest(root: Path, since: str) -> str:
     if proposed:
         lines.append(f"## Awaiting ratification ({len(proposed)})\n")
         lines += [f"- {d.id} {d.title}" for d in proposed]
+        lines.append("")
+    tradeoffs = [d for d in decisions if d.active and d.nature == "tradeoff"]
+    if tradeoffs:
+        lines.append(f"## Tradeoffs due for review ({len(tradeoffs)})\n")
+        lines += [f"- {d.id} — {d.title} (revisit when: "
+                  f"{d.revisit_when or 'unstated'})" for d in tradeoffs]
         lines.append("")
     hygiene = registry_hygiene(root)
     if hygiene:

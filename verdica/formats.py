@@ -38,6 +38,8 @@ class Decision:
     category: str = "engineering"  # strategy | product | design | engineering | process
     deciders: list[str] = field(default_factory=list)
     superseded_by: str | None = None
+    nature: str = "standing"  # standing | tradeoff (a compromise tied to a condition)
+    revisit_when: str | None = None  # for tradeoffs: the event that reopens it
     body: str = ""
     file: str = ""
     legacy: bool = False  # read from an existing ADR registry, not .decisions/
@@ -90,6 +92,10 @@ def parse_decision(path: Path) -> Decision:
         category=str(meta.get("category") or "engineering"),
         deciders=[str(d) for d in (meta.get("deciders") or [])],
         superseded_by=meta.get("superseded_by"),
+        # a stated condition implies tradeoff even when nature was omitted
+        nature=str(meta.get("nature")
+                   or ("tradeoff" if meta.get("revisit_when") else "standing")),
+        revisit_when=(str(meta["revisit_when"]) if meta.get("revisit_when") else None),
         body=text[m.end():],
         file=str(path),
     )

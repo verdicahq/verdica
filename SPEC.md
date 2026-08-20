@@ -42,6 +42,25 @@ superseded_by: null       # filled when a later decision replaces this one
 | `date` | no | ISO date of ratification. |
 | `supersedes` / `superseded_by` | no | The supersession chain. A superseded decision keeps `status: superseded` and points forward. |
 
+## Nature: standing vs tradeoff
+
+Not every decision is meant to last. `nature: standing` (the default) marks a
+deliberate lasting choice. `nature: tradeoff` marks a temporary compromise tied
+to a contingent requirement — a feature currently disabled, a launch that has
+not happened, a provider limit. A tradeoff carries `revisit_when`, the event
+that should reopen it, stated in plain language:
+
+```yaml
+nature: tradeoff
+revisit_when: "in-app payments go live"
+```
+
+Semantics: a tradeoff gates like any accepted decision, but every gate report
+labels it and names its condition; the digest lists all standing tradeoffs
+under "Tradeoffs due for review" until each is either promoted to `standing`
+or superseded. A diff that fulfils the condition is grounds for supersession,
+not a violation. A `revisit_when` without `nature` implies `tradeoff`.
+
 ## Body
 
 Free Markdown. Recommended sections, in this order:

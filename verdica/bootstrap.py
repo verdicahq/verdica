@@ -125,6 +125,8 @@ class Draft:
     noise: float = 0.0
     receipts: list[str] = field(default_factory=list)
     demoted: bool = False
+    nature: str = "standing"
+    revisit_when: str = ""
 
 
 def _git(root: Path, *args: str) -> str:
@@ -255,9 +257,11 @@ DISTILL_SCHEMA = {
                      "enum": ["strategy", "product", "design", "engineering", "process"]},
         "is_real_rule": {"type": "boolean"},
         "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+        "nature": {"type": "string", "enum": ["standing", "tradeoff"]},
+        "revisit_when": {"type": "string"},
     },
     "required": ["title", "rationale", "scope_paths", "severity", "category",
-                 "is_real_rule", "confidence"],
+                 "is_real_rule", "confidence", "nature", "revisit_when"],
     "additionalProperties": False,
 }
 
@@ -296,6 +300,8 @@ def distill(cluster: Cluster, index: int) -> Draft | None:
         category=draft.get("category") or guess_category(cluster.files, all_text),
         rationale=draft["rationale"],
         confidence=draft["confidence"],
+        nature=draft.get("nature") or "standing",
+        revisit_when=draft.get("revisit_when") or "",
     )
 
 
@@ -314,10 +320,18 @@ def _distill_llm(cluster: Cluster, evidence: list[Mention], scope: list[str]) ->
         "not contribute scope paths — when ALL evidence is notes, scope_paths "
         "must be exactly [\"**\"]; never invent paths that no evidence "
         "touches. Severity defaults to warn; use block only when violating "
-        "the rule is irreversible or security/pricing-critical. If the "
-        "artifacts do not state a real standing rule (TODOs, status updates, "
-        "descriptions of code mechanics with no normative force), set "
-        "is_real_rule=false.\n\n"
+        "the rule is irreversible or security/pricing-critical. Decide the "
+        "rule's NATURE: 'standing' for a deliberate lasting choice, "
+        "'tradeoff' for a temporary compromise tied to a contingent "
+        "requirement (a feature currently disabled, a launch not yet "
+        "happened, a provider limit). A tradeoff's title must carry its "
+        "condition ('while X, ...') and revisit_when must state, in the "
+        "evidence's own language, the event that should reopen it; for "
+        "standing rules revisit_when is an empty string. Evidence that "
+        "describes a current state without saying it is meant to last is a "
+        "tradeoff, not a standing rule. If the artifacts do not state a "
+        "real rule at all (TODOs, status updates, descriptions of code "
+        "mechanics with no normative force), set is_real_rule=false.\n\n"
         "Evidence:\n" + ev_lines
         + f"\n\nDefault scope from evidence paths: {scope}",
         DISTILL_SCHEMA,
@@ -495,7 +509,9 @@ def render_decision(d: Draft) -> str:
     return (
         f"---\nid: {d.id}\ntitle: {d.title}\nstatus: proposed\n"
         f"category: {d.category}\nseverity: {d.severity}\n"
-        f"scope:\n  paths:\n{paths}\ndeciders: []\n---\n\n"
+        f"nature: {d.nature}\n"
+        + (f'revisit_when: "{d.revisit_when}"\n' if d.nature == "tradeoff" else "")
+        + f"scope:\n  paths:\n{paths}\ndeciders: []\n---\n\n"
         f"## Decision\n{d.title}\n\n## Rationale\n{d.rationale}\n\n"
         f"## Provenance\nTier {d.tier}, confidence {d.confidence}, "
         f"backtest noise {d.noise:.0%}.{receipts}\n\nEvidence:\n{ev}\n"
