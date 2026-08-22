@@ -5,3 +5,4 @@ dist/
 .venv/
 *.jsonl
 !dataset/*.jsonl
+!bench/*.jsonl
