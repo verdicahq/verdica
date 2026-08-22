@@ -1,0 +1,9 @@
+{
+  "date": "2026-08-22",
+  "provider": "mistral",
+  "n": 43,
+  "precision": 0.429,
+  "recall": 0.13,
+  "high_conf_calls": 7,
+  "high_conf_precision": 0.429
+}

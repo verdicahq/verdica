@@ -62,6 +62,7 @@ def _mistral(prompt: str, schema: dict) -> dict | None:
             "messages": [{"role": "user", "content": prompt_text}],
             "response_format": response_format,
             "max_tokens": 2048,
+            "temperature": 0,
         }).encode()
         req = urllib.request.Request(MISTRAL_URL, data=body, headers={
             "Authorization": f"Bearer {os.environ['MISTRAL_API_KEY']}",

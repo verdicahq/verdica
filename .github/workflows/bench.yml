@@ -1,0 +1,28 @@
+name: bench
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "verdica/gate.py"
+      - "verdica/llm.py"
+      - "bench/**"
+
+jobs:
+  judge-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet .
+      - name: Run the judge benchmark against the pinned cohort
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        run: python3 bench/run.py --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: bench/results/

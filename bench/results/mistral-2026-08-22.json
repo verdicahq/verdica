@@ -1,0 +1,324 @@
+{
+  "summary": {
+    "date": "2026-08-22",
+    "provider": "mistral",
+    "n": 43,
+    "errors": 0,
+    "precision": 0.429,
+    "recall": 0.13,
+    "high_conf_calls": 7,
+    "high_conf_precision": 0.429,
+    "counts": {
+      "tp": 3,
+      "fp": 4,
+      "tn": 16,
+      "fn": 20,
+      "hi_tp": 3,
+      "hi_fp": 4,
+      "err": 0
+    }
+  },
+  "rows": [
+    {
+      "source": "https://github.com/BrighterCommand/Brighter/pull/4022",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "No diff provided; no evidence of contradiction."
+    },
+    {
+      "source": "https://github.com/BrighterCommand/Brighter/pull/3971",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not contradict the ADR-0036 decision. It primarily updates package versions (including adding `JetBrains.dotMemoryUnit` and `Microsoft.AspNetCore.Mvc.Testing` as mandated by the ADR), mi"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/168848",
+      "expected": true,
+      "got": true,
+      "confidence": "high",
+      "evidence": "The diff introduces a new integration (`hp_ilo`) with configuration YAML under a platform key (`button:`), as shown in the test config:\n```yaml\n\"button\": {\n    \"platform\": \"hp_ilo\",\n    \"host\": \"192.1"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/156001",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `uk_transport` sensor platform implementation (sensor.py) by adding new configuration options (CONF_API_LIMIT, CONF_SCAN_INTERVAL) and updating the API request logic, but it does"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/161252",
+      "expected": false,
+      "got": true,
+      "confidence": "high",
+      "evidence": "The diff introduces a new integration (`energy_tracker`) but does not include any changes to the `CODEOWNERS` file or any indication that the contributor is being added as a code owner. This directly "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/155740",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the YAML configuration structure of the integration. It only adds support for optional basic authentication in the `signal_messenger` notify platform, which is within the exis"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/151437",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the YAML configuration structure or move any configuration from platform sections to the integration domain key. It only extends the functionality of the `shodan` sensor platf"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/128616",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "No contradictory hunks found. The diff introduces a new integration (`mawaqit`) that is configured exclusively via UI (config flow) and does not include YAML support, which aligns with the decision's "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/152330",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the configuration YAML structure or its placement. It only extends the device_tracker platform's functionality (e.g., adding SSL support, extra attributes) without altering th"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/153148",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the SNMP sensor platform implementation (sensor.py) and its constants (const.py) but does not alter the YAML configuration structure. The changes are internal (e.g., adding `retain_s"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/148085",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff aligns with ADR-0021's requirements. Specifically:\n1. The YAML configuration is deprecated and a migration path is provided via `async_step_import` in `config_flow.py` (hunk starting at line "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/150581",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not contradict ADR-0010. The changes explicitly mark `modbus` as exempt from `config-flow` requirements (lines 15-17, 30-32, 35-37, 55-57 in the YAML file), citing that it is a 'protocol"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/149544",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff removes a configuration option (`CONF_TITLE`) from the XMPP notify platform, but does not introduce or modify any YAML configuration structure. The ADR-0007 decision specifically governs the "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/149379",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds a new configuration option (`CONF_TITLE`) to the XMPP notify platform, but it does not violate ADR-0007. The decision mandates that YAML configuration must be under the integration domai"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/148496",
+      "expected": true,
+      "got": true,
+      "confidence": "high",
+      "evidence": "@@ -42,7 +41,7 @@\n PLATFORM_SCHEMA = SENSOR_PLATFORM_SCHEMA.extend(\n     {\n         vol.Optional(CONF_DISKS, default=[]): vol.All(cv.ensure_list, [cv.string]),\n-        vol.Optional(CONF_HOST, default"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/135407",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the YAML configuration structure or move configuration from platform keys to the integration domain key. It only updates the binary sensor implementation for the `rflink` inte"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/151116",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds a config flow for the Modbus integration while explicitly blocking UI-based configuration (via `async_step_user` and `async_step_reconfigure` aborting with 'no_online_config'/'no_online_"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/146712",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `utility_meter` integration, which falls under the category 'Integrations that process Home Assistant data and make this available to other integrations' (as listed in the ADR). "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/141000",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `VALID_CATEGORIES` list in the `nsw_rural_fire_service_feed` integration, which is a geo_location integration. According to the ADR-0010 decision, this type of integration (proce"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/138631",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds a new integration (`decora_wifi`) and its associated files, including the contributor `@gtalarico` as a code owner in the `CODEOWNERS` file (lines 6-7 in the diff). This aligns with the "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/127744",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds a new integration (`weconnect`) that interacts with the Volkswagen WeConnect API (as seen in `manifest.json` and `coordinator.py`). The ADR-004 explicitly allows exceptions for the authe"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/142339",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `fritz/image.py` file to handle cases where the `get_wifi_qr_code` method is not available. This change is unrelated to the installation method (Home Assistant Core) or its suppo"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/87863",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `trend` integration's binary sensor implementation, specifically the YAML configuration schema and the sensor's internal logic. However, it does not introduce or modify YAML conf"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/134165",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds support for an optional `unique_id` configuration key in the SNMP switch platform, which is explicitly allowed as an exception in the ADR under the 'Exceptions' section."
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/131420",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `linksys_smart` device_tracker platform to add optional `username` and `password` fields to its configuration schema (PLATFORM_SCHEMA), but it does not introduce or modify YAML c"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/130821",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds support for an optional `unique_id` configuration key, which is explicitly allowed as an exception in the ADR under the 'Exceptions' section."
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/122963",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds a new configuration option (voice) under the platform key 'tts' for the voicerss integration, but it does not introduce or modify YAML configuration structure in a way that violates ADR-"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/126574",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the YAML configuration structure or placement. It only updates sensor-related code (e.g., splitting sensors into temperature and percentage types) and bumps the dependency ver"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/123951",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not introduce or modify YAML configuration structure in platform sections. It only adds a new optional configuration key `CONF_CHANNEL` under the integration domain key (`amcrest`) in `_"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/107562",
+      "expected": false,
+      "got": true,
+      "confidence": "high",
+      "evidence": "@@ -54,7 +56,9 @@\n         DOMAIN: INCLUDE_EXCLUDE_BASE_FILTER_SCHEMA.extend(\n             {\n                 vol.Required(CONF_HOST): cv.string,\n+                vol.Optional(CONF_URL): cv.string,\n  "
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/119688",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not contradict the decision. The changes involve:\n1. Adding `CONF_UNIQUE_ID` to the YAML configuration schema (hunk in `__init__.py` starting at line 68).\n2. Marking `CONF_CODE` as depre"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/118999",
+      "expected": true,
+      "got": true,
+      "confidence": "high",
+      "evidence": "The `api.py` file (lines 1-100) implements webscraping using `BeautifulSoup` and `requests` to extract data from HTML tables. This directly contradicts the ADR-0004 decision, which states: 'We no long"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/117434",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not contradict ADR-0010. The changes are related to the `telegram_bot` integration, which is a service integration (not a device integration). ADR-0010 explicitly allows YAML configurati"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/114956",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff adds support for an optional `unique_id` configuration key, which is explicitly allowed as an exception in the ADR under the 'Exceptions' section."
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/110132",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "No specific hunk contradicts the decision. The diff modifies the Zabbix integration to use a new library and removes YAML configuration options (username, password, SSL, path) but retains the core YAM"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/101102",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not modify the YAML configuration structure of the `trend` integration. It only adds a new configuration option (`min_samples`) and related validation logic to the existing platform-base"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/99324",
+      "expected": false,
+      "got": true,
+      "confidence": "high",
+      "evidence": "@@ -0,0 +1,229 @@\n+\"\"\"Support for LED lights that can be controlled using PWM.\"\"\"\n+... (entire new file `homeassistant/components/remote_rpi_gpio/light.py`)\n+\n+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/106348",
+      "expected": false,
+      "got": true,
+      "confidence": "high",
+      "evidence": "@@ -81,49 +81,44 @@ async def async_setup_platform(\n     \"\"\"Set up of an enigma2 media player.\"\"\"\n-    if discovery_info:\n-        # Discovery gives us the streaming service port (8001)\n-        # whi"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/115310",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": ""
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/108953",
+      "expected": true,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the `opnsense` integration's YAML configuration handling for `CONF_VERIFY_SSL`, but it does not introduce or remove YAML support for an integration that communicates with devices/ser"
+    },
+    {
+      "source": "https://github.com/linagora/tmail-flutter/pull/4461",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "None of the changes in the diff contradict the architectural decisions outlined in ADR-0081. The diff primarily updates Flutter/Dart versions, workflows (including adding a new workflow for web integr"
+    },
+    {
+      "source": "https://github.com/home-assistant/core/pull/129766",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff modifies the DuckDNS integration to add support for IPv4/IPv6 configuration via YAML (e.g., `CONF_IPV4_FETCH_URL`, `CONF_IPV6_FETCH_URL`, `CONF_IP_UPDATE_MODE`). The ADR-0010 decision explici"
+    },
+    {
+      "source": "https://github.com/linagora/tmail-flutter/pull/4393",
+      "expected": false,
+      "got": false,
+      "confidence": "high",
+      "evidence": "The diff does not touch any files or logic related to the decision's scope (e.g., `collapseThreads` in `Email/query`, cache clearing on thread toggle, or thread-enabled status propagation). It focuses"
+    }
+  ]
+}
