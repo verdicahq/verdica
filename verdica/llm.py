@@ -93,7 +93,14 @@ def _mistral(prompt: str, schema: dict) -> dict | None:
                 continue
             last_error = f"http {e.code}"
             return None
-        except (urllib.error.URLError, KeyError, ValueError) as e:
+        except (urllib.error.URLError, OSError) as e:
+            # socket timeouts and resets are transient: retry like a 5xx
+            if attempt < 3:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            last_error = type(e).__name__
+            return None
+        except (KeyError, ValueError) as e:
             last_error = type(e).__name__
             return None
     last_error = "retries exhausted"

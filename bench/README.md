@@ -31,6 +31,17 @@ transport-category carve-out that permits YAML for GPIO integrations — the
 label was right, and the miss traced to the bench truncating the decision
 text. The cap was raised; the pair stayed.
 
+## Two stages, two dials (v2)
+
+Since v2 the bench reproduces the production funnel: each decision gets a
+derived scope (committed in `scopes.json`, correctable like any scope), the
+diff is cut to matching files, and pairs with no scope hit never reach the
+judge — they are counted as `funnel_misses` (positives) or `funnel_silences`
+(negatives). First measurement: the funnel silences 15 of 23 true violations
+before any model runs. The binding constraint is scope quality, not judge
+quality — which is why rule previews and the out-of-scope advisor are load-
+bearing features, not conveniences.
+
 ## Rules of the cohort
 
 - `pairs.jsonl` is committed and only changes by explicit commit, never by

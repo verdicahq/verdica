@@ -1,0 +1,66 @@
+{
+  "BrighterCommand/Brighter:docs/adr/0040-add-the-specification-pattern.md": [
+    "src/Brighter/**/Specification/**",
+    "src/Brighter/**/Mediator/**/*Specification*.cs",
+    "src/Brighter/**/AgreementDispatcher/**/*Specification*.cs",
+    "test/Brighter.Tests/**/Specification/**",
+    "test/Brighter.Tests/**/Mediator/**/*Specification*Test.cs",
+    "test/Brighter.Tests/**/AgreementDispatcher/**/*Specification*Test.cs"
+  ],
+  "BrighterCommand/Brighter:docs/adr/0036-memory-leak-tests.md": [
+    "samples/WebAPI/WebAPI_EFCore/GreetingsWeb/**",
+    "samples/WebAPI/WebAPI_EFCore/SalutationAnalytics/**",
+    "tests/Paramore.Brighter.MemoryLeak.Tests/**"
+  ],
+  "home-assistant/architecture:adr/0007-integration-config-yaml-structure.md": [
+    "homeassistant/components/*/__init__.py",
+    "homeassistant/components/*/manifest.json"
+  ],
+  "home-assistant/architecture:adr/0008-code-owners.md": [
+    "homeassistant/components/*/**",
+    "CODEOWNERS"
+  ],
+  "home-assistant/architecture:adr/0010-integration-configuration.md": [
+    "**"
+  ],
+  "home-assistant/architecture:adr/0021-YAML-integration-configuration-deprecation-policy.md": [
+    "**"
+  ],
+  "home-assistant/architecture:adr/0004-webscraping.md": [
+    "homeassistant/components/*/__init__.py",
+    "homeassistant/components/*/api.py",
+    "homeassistant/components/*/config_flow.py",
+    "homeassistant/components/*/const.py",
+    "homeassistant/components/*/manifest.json",
+    "homeassistant/components/*/sensor.py",
+    "homeassistant/components/*/*.py",
+    "!homeassistant/components/*/auth*.py",
+    "!homeassistant/components/*/helpers/*.py",
+    "!homeassistant/components/*/generic/*.py"
+  ],
+  "home-assistant/architecture:adr/0016-home-assistant-core.md": [
+    "homeassistant/components/**/manifest.json",
+    "homeassistant/requirements*.txt",
+    "homeassistant/core.py",
+    "homeassistant/run.py",
+    "script/hass-cli",
+    "script/setup",
+    "docs/installation/advanced.md",
+    "docs/installation/virtualenv.md",
+    "docs/installation/windows.md",
+    "docs/installation/macos.md",
+    "docs/installation/linux.md",
+    "docs/core/"
+  ],
+  "linagora/tmail-flutter:docs/adr/0081-patrol-web-test-architecture.md": [
+    "integration_test/**",
+    "lib/features/base/model/ui_keys.dart"
+  ],
+  "linagora/tmail-flutter:docs/adr/0071-collapse-threads-in-email-query.md": [
+    "lib/features/base/mixin/mail_api_mixin.dart",
+    "lib/features/thread/data/repository/thread_repository_impl.dart",
+    "lib/features/thread/domain/usecases/get_emails_in_mailbox_interactor.dart",
+    "lib/features/caching/manager/app_security_manager.dart",
+    "lib/main/bindings/core/core_bindings.dart"
+  ]
+}

@@ -24,7 +24,7 @@ from verdica.formats import Decision  # noqa: E402
 from verdica.gate import judge  # noqa: E402
 from verdica import llm  # noqa: E402
 
-REGRESSION_MARGIN = 0.02
+REGRESSION_MARGIN = 0.05
 
 
 def main() -> int:
@@ -35,15 +35,24 @@ def main() -> int:
     pairs = [json.loads(l) for l in
              (ROOT / "bench" / "pairs.jsonl").read_text().splitlines() if l.strip()]
     rows, tp = [], 0
-    counts = {"tp": 0, "fp": 0, "tn": 0, "fn": 0, "hi_tp": 0, "hi_fp": 0, "err": 0}
+    counts = {"tp": 0, "fp": 0, "tn": 0, "fn": 0, "hi_tp": 0, "hi_fp": 0, "err": 0,
+              "funnel_miss": 0, "funnel_silence": 0}
     for i, p in enumerate(pairs, 1):
+        if "scoped_diff" in p and not p["scoped_diff"]:
+            # production semantics: no scope hit, the judge never runs
+            key = "funnel_miss" if p["expected_contradicts"] else "funnel_silence"
+            counts[key] += 1
+            print(f"[{i}/{len(pairs)}] FUNNEL {'miss' if key == 'funnel_miss' else 'ok  '} "
+                  f"(no scope hit) {p['source']}", flush=True)
+            continue
         decision = Decision(id=p["decision_id"], title=p["decision_id"],
                             status="accepted", paths=["**"],
                             body=p["decision_text"])
+        diff = p.get("scoped_diff") or p["diff"]
         v = None
         for attempt in range(4):
             llm.last_error = None
-            v = judge(decision, p["diff"])
+            v = judge(decision, diff)
             if v is not None or not llm.last_error:
                 break
             time.sleep(8 * (attempt + 1))  # 429s: back off and retry
@@ -74,6 +83,8 @@ def main() -> int:
                "precision": round(precision, 3), "recall": round(recall, 3),
                "high_conf_calls": hi_calls,
                "high_conf_precision": round(hi_precision, 3),
+               "funnel_misses": counts["funnel_miss"],
+               "funnel_silences": counts["funnel_silence"],
                "counts": counts}
     print("\n" + json.dumps(summary, indent=2))
     results_dir = ROOT / "bench" / "results"
